@@ -23,12 +23,24 @@
   body { background: var(--bg); color: var(--text); padding: 18px; }
   
   header { 
-    background: var(--surface); padding: 18px 24px; border-radius: 8px; 
+    background: var(--surface); padding: 16px 22px; border-radius: 8px; 
     box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 18px; 
     display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; 
   }
-  h1 { font-size: 1.45rem; color: var(--primary); margin-bottom: 4px; }
-  p.subtitle { color: var(--text-muted); font-size: 0.88rem; }
+  h1 { font-size: 1.4rem; color: var(--primary); margin-bottom: 2px; }
+  p.subtitle { color: var(--text-muted); font-size: 0.85rem; }
+
+  /* Category switcher (Senioren / Jeugd) */
+  .category-toggle {
+    display: flex; background: #e2e8f0; padding: 4px; border-radius: 8px; gap: 4px;
+  }
+  .cat-btn {
+    border: none; background: transparent; padding: 7px 16px; border-radius: 6px;
+    font-weight: 700; font-size: 0.88rem; color: #475569; cursor: pointer; transition: all 0.2s;
+  }
+  .cat-btn.active {
+    background: var(--primary); color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+  }
 
   .season-selector-wrap { display: flex; align-items: center; gap: 8px; background: #e0e7ff; padding: 6px 12px; border-radius: 8px; }
   .season-selector-wrap label { font-size: 0.82rem; font-weight: bold; color: #3730a3; }
@@ -52,13 +64,13 @@
 
   /* Matrix table */
   .matrix-wrapper { overflow-x: auto; max-width: 100%; border: 1px solid var(--border); border-radius: 6px; }
-  table.matrix-table { border-collapse: collapse; width: 100%; min-width: 980px; font-size: 0.82rem; }
+  table.matrix-table { border-collapse: collapse; width: 100%; min-width: 820px; font-size: 0.82rem; }
   table.matrix-table th, table.matrix-table td { border: 1px solid var(--border); padding: 5px 4px; text-align: center; }
   table.matrix-table th { background: #e2e8f0; font-weight: 700; color: var(--text); }
   table.matrix-table tr:hover { background: #f8fafc; }
   
   .team-cell-wrap { display: flex; align-items: center; justify-content: center; gap: 2px; }
-  input.team-cell { width: 54px; padding: 4px; text-align: center; font-weight: bold; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.84rem; text-transform: uppercase; }
+  input.team-cell { width: 56px; padding: 4px; text-align: center; font-weight: bold; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.82rem; text-transform: uppercase; }
   input.team-cell:focus { outline: 2px solid var(--primary-light); background: #eff6ff; }
   input.team-cell.empty-cell { background: #f8fafc; color: #94a3b8; font-weight: normal; }
 
@@ -139,15 +151,22 @@
 
 <header class="no-print">
   <div>
-    <h1>N.K.B. en K.T.O.-T.K.C. Competitie Planner</h1>
-    <p class="subtitle">Indelen, Seizoensarchief, Contra-schema's, Boekjes & PDF Generatie</p>
+    <h1 id="app-main-title">N.K.B. en K.T.O.-T.K.C. Competitie Planner</h1>
+    <p class="subtitle" id="app-sub-title">Seniorencompetitie: Indelen, Seizoenen, Boekjes & PDF Generatie</p>
   </div>
-  <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+  
+  <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <!-- Category toggle: Senioren / Jeugd -->
+    <div class="category-toggle">
+      <button class="cat-btn active" id="btn-cat-senioren" onclick="setCategory('senioren')">🏆 Senioren</button>
+      <button class="cat-btn" id="btn-cat-jeugd" onclick="setCategory('jeugd')">🎯 Jeugd</button>
+    </div>
+
     <div class="season-selector-wrap">
-      <label for="season-select">Actief Seizoen:</label>
+      <label for="season-select">Seizoen:</label>
       <select id="season-select" class="season-select" onchange="changeSeason(this.value)"></select>
     </div>
-    <button class="btn btn-warning" onclick="promptNewSeason()">➕ Nieuw Seizoen</button>
+    <button class="btn btn-warning btn-sm" onclick="promptNewSeason()">➕ Nieuw Seizoen</button>
     <button class="btn btn-outline btn-sm" onclick="promptDeleteSeason()" title="Huidig seizoen verwijderen">🗑️</button>
   </div>
 </header>
@@ -173,12 +192,13 @@
   <div class="card">
     <div class="actions-bar no-print">
       <div>
-        <strong>Centrale Indeling:</strong> Gebruik <span style="font-weight:bold;">▲ / ▼</span> op élke cel (ook op lege plekken) voor verplaatsen of toewijzen.
+        <strong id="matrix-section-title">Centrale Indeling Senioren:</strong> Gebruik <span style="font-weight:bold;">▲ / ▼</span> op élke cel om teams te verplaatsen of toe te wijzen.
       </div>
       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button class="btn btn-outline btn-sm" onclick="addClass()">➕ Klasse Toevoegen</button>
         <button class="btn btn-outline btn-sm" onclick="resetToStandard()">Herstel Standaard</button>
         <button class="btn btn-primary btn-sm" onclick="validateMatrix()">Controleer op Dubbelen</button>
-        <button class="btn btn-success btn-sm" onclick="exportJSON()">Opslaan Alle Seizoenen (.json)</button>
+        <button class="btn btn-success btn-sm" onclick="exportJSON()">Opslaan (.json)</button>
         <label class="btn btn-outline btn-sm" style="cursor: pointer;">
           Inladen <input type="file" id="file-loader" style="display:none;" onchange="loadJSON(event)">
         </label>
@@ -226,7 +246,7 @@
         <button class="btn btn-primary" onclick="window.print()">🖨️ Afdrukken / Opslaan als PDF</button>
       </div>
     </div>
-    <p style="font-size:0.84rem; color:var(--text-muted);">
+    <p style="font-size:0.84rem; color:var(--text-muted);" id="booklet-expl-text">
       Deze weergave komt exact overeen met het officiële <em>Competitieprogramma NKB – KTO</em> document dat naar de verenigingen wordt gestuurd.
     </p>
   </div>
@@ -239,7 +259,7 @@
   <div class="card">
     <div class="actions-bar no-print">
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <label><strong>Zondag:</strong></label>
+        <label><strong>Zondag / Speeldag:</strong></label>
         <select id="schedule-round-filter" class="btn btn-outline" onchange="renderSchedule()">
           <option value="all">Alle zondagen (1 t/m 18)</option>
         </select>
@@ -249,14 +269,14 @@
         </select>
       </div>
       <div>
-        <span id="schedule-count" class="status-badge badge-8">760 wedstrijden</span>
+        <span id="schedule-count" class="status-badge badge-8">0 wedstrijden</span>
       </div>
     </div>
     <div style="overflow-x: auto;">
       <table class="data-table" id="scheduleTable">
         <thead>
           <tr>
-            <th>Zondag</th>
+            <th>Dag</th>
             <th>Klasse</th>
             <th>Thuisploeg</th>
             <th>-</th>
@@ -275,7 +295,7 @@
   <div class="card no-print">
     <div class="actions-bar">
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <label><strong>Wedstrijdzondag:</strong></label>
+        <label><strong>Wedstrijddag:</strong></label>
         <select id="sheet-round-filter" class="btn btn-outline" onchange="renderSheets()"></select>
         <label><strong>Thuisvereniging:</strong></label>
         <select id="sheet-club-filter" class="btn btn-outline" onchange="renderSheets()">
@@ -295,7 +315,7 @@
   <div class="card">
     <h3 style="color: var(--primary); margin-bottom: 8px;">Directe Bestanden Downloaden</h3>
     <p style="margin-bottom: 18px; color: var(--text-muted); font-size: 0.88rem;">
-      Genereer met één klik de officiële exports voor Marcel Zwiep en het Excel programmaboek.
+      Genereer met één klik de officiële exports voor Marcel Zwiep en het programmaboek.
     </p>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
@@ -307,7 +327,7 @@
 
       <div style="border: 1px solid var(--border); border-radius: 6px; padding: 16px; background: #fafafa;">
         <h4 style="color: var(--primary); margin-bottom: 6px;">2. Programmaboekje / TKC</h4>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Overzicht met volledige verenigingsnamen per zondag en per klasse.</p>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Overzicht met volledige verenigingsnamen per wedstrijddag en klasse.</p>
         <button class="btn btn-primary" onclick="downloadBookletCSV()">Download Boekje CSV</button>
       </div>
 
@@ -324,10 +344,10 @@
 <div id="tab-info" style="display: none;">
   <div class="card">
     <div class="actions-bar">
-      <h3 style="color: var(--primary);">23 Aangesloten Verenigingen</h3>
+      <h3 style="color: var(--primary);">Aangesloten Verenigingen</h3>
       <button class="btn btn-primary btn-sm" onclick="openAddClubModal()">➕ Nieuwe Vereniging Toevoegen</button>
     </div>
-    <div id="club-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; font-size: 0.85rem;"></div>
+    <div id="club-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; font-size: 0.85rem;"></div>
   </div>
 </div>
 
@@ -386,7 +406,8 @@
 </div>
 
 <script>
-// Multi-season storage
+// Active category: 'senioren' or 'jeugd'
+let currentCategory = "senioren";
 let currentSeason = "2026 - 2027";
 
 let clubNames = {
@@ -398,7 +419,7 @@ let clubNames = {
   'VL': 'Vooruit Losser', 'VO': 'Vooruitzicht', 'WI': 'Wilskracht'
 };
 
-const defaultClasses2026 = [
+const defaultSenioren2026 = [
   { name: "Hoofdklasse", num: 1, swap: false, teams: ["OO 1", "SV 1", "BE 1", "MA 1", "DT 1", "NG 1", "LB 1", "OS 1", "", ""] },
   { name: "1e klasse", num: 2, swap: false, teams: ["HE 1", "BR 1", "BE 2", "VO 1", "VL 1", "NB 1", "LE 1", "WI 1", "", ""] },
   { name: "2e klasse", num: 3, swap: false, teams: ["OO 2", "JV 1", "BE 3", "VO 2", "KK 1", "NG 2", "NB 2", "RE 1", "", ""] },
@@ -414,8 +435,20 @@ const defaultClasses2026 = [
   { name: "12e klasse", num: 13, swap: true, teams: ["VL 5", "LE 8", "BE11", "DT 5", "JV 6", "KK 5", "OS 6", "BE12", "", ""] }
 ];
 
+const defaultJeugd2026 = [
+  { name: "Klasse A", num: 1, swap: false, teams: ["BE 1", "OO 1", "NG 1", "DT 1", "SV 1", "LE 1", "VO 1", "OS 1", "", ""] },
+  { name: "Klasse B", num: 2, swap: false, teams: ["BR 1", "HE 1", "BE 2", "LB 1", "RE 1", "NB 1", "VL 1", "WI 1", "", ""] },
+  { name: "Klasse C", num: 3, swap: false, teams: ["OO 2", "NG 2", "BE 3", "VO 2", "KK 1", "JV 1", "RO 1", "DB 1", "", ""] },
+  { name: "Klasse D", num: 4, swap: true, teams: ["DT 2", "LE 2", "OS 2", "SV 2", "GU 1", "OG 1", "NI 1", "MA 1", "", ""] },
+  { name: "Klasse E", num: 5, swap: true, teams: ["BE 4", "NG 3", "OO 3", "BR 2", "VO 3", "VL 2", "RE 2", "HE 2", "", ""] },
+  { name: "Klasse F", num: 6, swap: false, teams: ["LE 3", "DT 3", "SV 3", "OS 3", "BE 5", "NG 4", "", "", "", ""] }
+];
+
 let seasonsData = {
-  "2026 - 2027": JSON.parse(JSON.stringify(defaultClasses2026))
+  "2026 - 2027": {
+    senioren: JSON.parse(JSON.stringify(defaultSenioren2026)),
+    jeugd: JSON.parse(JSON.stringify(defaultJeugd2026))
+  }
 };
 
 const matrix8 = [
@@ -456,11 +489,41 @@ const matrix10 = [
   [[2,10], [6,7], [3,1], [5,8]]
 ];
 
+function setCategory(cat) {
+  currentCategory = cat;
+  document.getElementById("btn-cat-senioren").classList.toggle("active", cat === "senioren");
+  document.getElementById("btn-cat-jeugd").classList.toggle("active", cat === "jeugd");
+
+  const catName = cat === "senioren" ? "Senioren" : "Jeugd";
+  document.getElementById("app-sub-title").innerText = `${catName}competitie: Indelen, Seizoenen, Boekjes & PDF Generatie`;
+  document.getElementById("matrix-section-title").innerText = `Centrale Indeling ${catName}:`;
+  document.getElementById("booklet-expl-text").innerHTML = `Deze weergave komt exact overeen met het officiële <em>Competitieprogramma NKB – KTO (${catName})</em> document dat naar de verenigingen wordt gestuurd.`;
+
+  renderTable();
+  initFilters();
+  renderSchedule();
+  renderBooklet();
+  renderSheets();
+}
+
 function getCurrentClassData() {
   if (!seasonsData[currentSeason]) {
-    seasonsData[currentSeason] = JSON.parse(JSON.stringify(defaultClasses2026));
+    seasonsData[currentSeason] = {
+      senioren: JSON.parse(JSON.stringify(defaultSenioren2026)),
+      jeugd: JSON.parse(JSON.stringify(defaultJeugd2026))
+    };
   }
-  return seasonsData[currentSeason];
+  // If legacy array format was loaded
+  if (Array.isArray(seasonsData[currentSeason])) {
+    seasonsData[currentSeason] = {
+      senioren: seasonsData[currentSeason],
+      jeugd: JSON.parse(JSON.stringify(defaultJeugd2026))
+    };
+  }
+  if (!seasonsData[currentSeason][currentCategory]) {
+    seasonsData[currentSeason][currentCategory] = JSON.parse(JSON.stringify(currentCategory === "jeugd" ? defaultJeugd2026 : defaultSenioren2026));
+  }
+  return seasonsData[currentSeason][currentCategory];
 }
 
 function parseTeam(raw) {
@@ -492,6 +555,7 @@ function renderSeasonSelector() {
 function changeSeason(season) {
   currentSeason = season;
   renderTable();
+  initFilters();
   renderSchedule();
   renderBooklet();
   renderSheets();
@@ -505,13 +569,18 @@ function promptNewSeason() {
     alert("Dit seizoen bestaat al. Je wordt ernaartoe geschakeld.");
     currentSeason = sName;
   } else {
-    // Duplicate current season to new season
-    seasonsData[sName] = JSON.parse(JSON.stringify(getCurrentClassData()));
+    // Duplicate current season to new season (both senioren & jeugd)
+    const curObj = seasonsData[currentSeason] || {};
+    seasonsData[sName] = {
+      senioren: JSON.parse(JSON.stringify(curObj.senioren || defaultSenioren2026)),
+      jeugd: JSON.parse(JSON.stringify(curObj.jeugd || defaultJeugd2026))
+    };
     currentSeason = sName;
-    alert(`Seizoen '${currentSeason}' is aangemaakt! Het voorgaande seizoen blijft volledig bewaard in de lijst.`);
+    alert(`Seizoen '${currentSeason}' is aangemaakt voor Senioren én Jeugd! Het voorgaande seizoen blijft volledig bewaard.`);
   }
   renderSeasonSelector();
   renderTable();
+  initFilters();
   renderSchedule();
   renderBooklet();
   renderSheets();
@@ -528,18 +597,37 @@ function promptDeleteSeason() {
     currentSeason = Object.keys(seasonsData)[0];
     renderSeasonSelector();
     renderTable();
+    initFilters();
     renderSchedule();
     renderBooklet();
     renderSheets();
   }
 }
 
+function addClass() {
+  const classData = getCurrentClassData();
+  const name = prompt("Voer de naam van de nieuwe klasse in (bijv. Klasse G of 13e klasse):");
+  if (!name || name.trim() === "") return;
+  const newNum = classData.length + 1;
+  classData.push({
+    name: name.trim(),
+    num: newNum,
+    swap: false,
+    teams: ["", "", "", "", "", "", "", "", "", ""]
+  });
+  renderTable();
+  initFilters();
+  renderSchedule();
+  renderBooklet();
+  renderSheets();
+}
+
 function renderTable() {
   const classData = getCurrentClassData();
   const table = document.getElementById("matrixTable");
   let html = "<thead><tr><th>Pos</th>";
-  classData.forEach(c => {
-    html += `<th>${c.name}<br><label style='font-size:0.7rem; font-weight:normal;'><input type='checkbox' ${c.swap ? 'checked' : ''} onchange='toggleSwap(${c.num-1}, this.checked)'> Wissel T/U</label></th>`;
+  classData.forEach((c, idx) => {
+    html += `<th>${c.name}<br><label style='font-size:0.7rem; font-weight:normal;'><input type='checkbox' ${c.swap ? 'checked' : ''} onchange='toggleSwap(${idx}, this.checked)'> Wissel T/U</label></th>`;
   });
   html += "</tr></thead><tbody>";
 
@@ -598,7 +686,6 @@ function openMoveModal(cIdx, posIdx, direction) {
 
     const teamChoiceSel = document.getElementById("move-team-choice");
     teamChoiceSel.innerHTML = "";
-    // Collect all existing teams
     const allTeams = [];
     classData.forEach((c, cI) => {
       c.teams.forEach((t, pI) => {
@@ -690,6 +777,7 @@ function updateStats() {
     totalTeams += count;
     if (count > 8) k10++; else if (count > 0) k8++;
   });
+  document.getElementById("stat-klassen").innerText = classData.length;
   document.getElementById("stat-teams").innerText = totalTeams;
   document.getElementById("stat-k8").innerText = k8;
   document.getElementById("stat-k10").innerText = k10;
@@ -716,8 +804,9 @@ function validateMatrix(showAlert = true) {
 }
 
 function resetToStandard() {
-  if (confirm(`Weet je zeker dat je het huidige seizoen '${currentSeason}' wilt herstellen naar de standaardwaarden?`)) {
-    seasonsData[currentSeason] = JSON.parse(JSON.stringify(defaultClasses2026));
+  const catName = currentCategory === "jeugd" ? "Jeugd" : "Senioren";
+  if (confirm(`Weet je zeker dat je ${catName} voor seizoen '${currentSeason}' wilt herstellen naar de standaardwaarden?`)) {
+    seasonsData[currentSeason][currentCategory] = JSON.parse(JSON.stringify(currentCategory === "jeugd" ? defaultJeugd2026 : defaultSenioren2026));
     renderTable();
     validateMatrix(false);
     renderSchedule();
@@ -728,6 +817,7 @@ function resetToStandard() {
 
 function exportJSON() {
   const payload = {
+    currentCategory: currentCategory,
     currentSeason: currentSeason,
     clubNames: clubNames,
     seasonsData: seasonsData
@@ -735,7 +825,7 @@ function exportJSON() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
   const dl = document.createElement('a');
   dl.setAttribute("href", dataStr);
-  dl.setAttribute("download", `klootschieten_competitie_alle_seizoenen.json`);
+  dl.setAttribute("download", `klootschieten_competitie_planner_backup.json`);
   dl.click();
 }
 
@@ -749,13 +839,15 @@ function loadJSON(event) {
       if (data.seasonsData) {
         seasonsData = data.seasonsData;
         if (data.currentSeason) currentSeason = data.currentSeason;
+        if (data.currentCategory) currentCategory = data.currentCategory;
         if (data.clubNames) clubNames = data.clubNames;
       } else if (data.classData) {
-        seasonsData[data.season || "2026 - 2027"] = data.classData;
-        currentSeason = data.season || "2026 - 2027";
-      } else {
-        seasonsData[currentSeason] = data;
+        seasonsData[data.season || "2026 - 2027"] = {
+          senioren: data.classData,
+          jeugd: JSON.parse(JSON.stringify(defaultJeugd2026))
+        };
       }
+      setCategory(currentCategory);
       renderSeasonSelector();
       renderTable();
       validateMatrix(true);
@@ -808,13 +900,13 @@ function initFilters() {
   const bookletDaySel = document.getElementById("booklet-day-select");
   const classSel = document.getElementById("schedule-class-filter");
 
-  roundSel.innerHTML = "<option value='all'>Alle zondagen (1 t/m 18)</option>";
+  roundSel.innerHTML = "<option value='all'>Alle wedstrijddagen</option>";
   sheetRoundSel.innerHTML = "";
-  bookletDaySel.innerHTML = "<option value='all'>Alle wedstrijddagen (1 t/m 18)</option>";
+  bookletDaySel.innerHTML = "<option value='all'>Alle wedstrijddagen</option>";
 
   for (let i = 1; i <= 18; i++) {
-    roundSel.innerHTML += `<option value="${i}">Zondag ${i}</option>`;
-    sheetRoundSel.innerHTML += `<option value="${i}">Zondag ${i}</option>`;
+    roundSel.innerHTML += `<option value="${i}">Wedstrijddag ${i}</option>`;
+    sheetRoundSel.innerHTML += `<option value="${i}">Wedstrijddag ${i}</option>`;
     bookletDaySel.innerHTML += `<option value="${i}">Wedstrijddag ${i}</option>`;
   }
 
@@ -862,14 +954,13 @@ function renderSchedule() {
   document.getElementById("scheduleBody").innerHTML = html;
 }
 
-// Render Competitieprogramma (Booklet / PDF layout matching the DOCX / PDF file)
 function renderBooklet() {
   const matches = generateMatches();
   const mode = document.getElementById("booklet-mode").value;
   const clubFilterWrap = document.getElementById("booklet-club-filter-wrap");
-  const dayFilterWrap = document.getElementById("booklet-day-filter-wrap");
   const selectedClub = document.getElementById("booklet-club-select").value;
   const selectedDay = document.getElementById("booklet-day-select").value;
+  const catLabel = currentCategory === "jeugd" ? "JEUGD" : "SENIOREN";
 
   clubFilterWrap.style.display = mode === "club" ? "flex" : "none";
 
@@ -881,7 +972,6 @@ function renderBooklet() {
     filtered = filtered.filter(m => m.round === parseInt(selectedDay));
   }
 
-  // Group by Round
   const rounds = {};
   for (let r = 1; r <= 18; r++) {
     const rMatches = filtered.filter(m => m.round === r);
@@ -904,13 +994,12 @@ function renderBooklet() {
     html += `
     <div class="booklet-day-block">
       <div class="booklet-day-header">
-        <h2>Competitieprogramma NKB – KTO ${currentSeason}</h2>
+        <h2>Competitieprogramma NKB – KTO ${currentSeason} (${catLabel})</h2>
         <h3>Wedstrijddag ${rNum}</h3>
         ${mode === "club" ? `<p style="font-weight:bold; color:#0369a1; font-size:1.05rem; margin-top:4px;">Programma voor: ${clubNames[selectedClub] || selectedClub}</p>` : ''}
       </div>
     `;
 
-    // Group day matches by class
     const classGroups = {};
     dayMatches.forEach(m => {
       if (!classGroups[m.classNum]) classGroups[m.classNum] = { name: m.className, matches: [] };
@@ -949,11 +1038,11 @@ function renderBooklet() {
   container.innerHTML = html;
 }
 
-// Render official Verzamelformulieren
 function renderSheets() {
   const matches = generateMatches();
   const round = parseInt(document.getElementById("sheet-round-filter").value);
   const club = document.getElementById("sheet-club-filter").value;
+  const catLabel = currentCategory === "jeugd" ? "JEUGD" : "SENIOREN";
 
   let rMatches = matches.filter(m => m.round === round);
   if (club !== "all") {
@@ -981,7 +1070,7 @@ function renderSheets() {
     <div class="sheet-container">
       <div class="sheet-header-top">
         <div class="sheet-title-left">N.K.B. en K.T.O.-T.K.C.</div>
-        <div class="sheet-title-right">SENIOREN</div>
+        <div class="sheet-title-right">${catLabel}</div>
       </div>
       <div class="sheet-sub">
         Verzamelformulier competitiewedstrijden ${currentSeason} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; datum: ___________________
@@ -1006,10 +1095,9 @@ function renderSheets() {
 
     list.sort((a,b) => a.classNum - b.classNum);
     list.forEach(m => {
-      const klLabel = m.classNum === 1 ? "hoofd" : (m.classNum - 1);
       html += `
         <tr>
-          <td><strong>${klLabel}</strong></td>
+          <td><strong>${m.className}</strong></td>
           <td>${m.home.name} ${m.home.num}</td>
           <td>${m.away.name} ${m.away.num}</td>
           <td style="text-align:center;"><div class="box-score"></div></td>
@@ -1026,7 +1114,7 @@ function renderSheets() {
       <div class="sheet-footer">
         <strong>Uitslagen op dit formulier door beide partijen paraferen.</strong><br>
         De uitslagen moeten voor 17.00 uur op <em>uitslagen.klootschieten.com</em> zijn ingevuld, anders volgt &euro; 5,-- boete. (Graag voor 15.00 uur ivm krantenverslag.)<br><br>
-        <strong>Wedstrijdverslag hoofd- en 1e klasse:</strong>
+        <strong>Wedstrijdverslag:</strong>
       </div>
     </div>
     `;
@@ -1039,7 +1127,6 @@ function renderClubs() {
   const grid = document.getElementById("club-grid");
   const classData = getCurrentClassData();
   
-  // Count how many teams per club are in the active season
   const teamCounts = {};
   classData.forEach(c => {
     c.teams.forEach(t => {
@@ -1083,7 +1170,7 @@ function deleteClub(code) {
 
   let warning = "";
   if (inUse > 0) {
-    warning = `\n\nLet op: er staan nog ${inUse} team(s) van ${cName} ingedeeld in het huidige seizoen!`;
+    warning = `\n\nLet op: er staan nog ${inUse} team(s) van ${cName} ingedeeld in ${currentCategory}!`;
   }
 
   if (confirm(`Weet je zeker dat je vereniging '${cName}' (${code}) wilt verwijderen?${warning}`)) {
@@ -1140,7 +1227,7 @@ function downloadMarcelCSV() {
   matches.forEach(m => {
     csv += `${m.round},${m.classNum},${m.home.code},${m.home.num},${m.away.code},${m.away.num}\n`;
   });
-  downloadCSV(csv, `Marcel_senioren_${currentSeason.replace(/\s+/g, '')}.csv`);
+  downloadCSV(csv, `Marcel_${currentCategory}_${currentSeason.replace(/\s+/g, '')}.csv`);
 }
 
 function downloadBookletCSV() {
@@ -1149,7 +1236,7 @@ function downloadBookletCSV() {
   matches.forEach(m => {
     csv += `${m.round},"${m.className}","${m.home.name}",${m.home.num},"${m.away.name}",${m.away.num}\n`;
   });
-  downloadCSV(csv, `senioren_programmaboekje_${currentSeason.replace(/\s+/g, '')}.csv`);
+  downloadCSV(csv, `${currentCategory}_programmaboekje_${currentSeason.replace(/\s+/g, '')}.csv`);
 }
 
 function downloadTeamProgramCSV() {
@@ -1164,7 +1251,7 @@ function downloadTeamProgramCSV() {
   teamMatches.forEach(t => {
     csv += `"${t.team}","${t.klasse}",${t.round},${t.type},"${t.tegen}"\n`;
   });
-  downloadCSV(csv, `programma_per_team_${currentSeason.replace(/\s+/g, '')}.csv`);
+  downloadCSV(csv, `programma_per_team_${currentCategory}_${currentSeason.replace(/\s+/g, '')}.csv`);
 }
 
 function downloadCSV(content, filename) {
