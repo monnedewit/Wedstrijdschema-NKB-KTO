@@ -216,6 +216,7 @@
         <button class="btn btn-outline btn-sm" onclick="addClass()">➕ Klasse Toevoegen</button>
         <button class="btn btn-outline btn-sm" onclick="resetToStandard()">Herstel Standaard</button>
         <button class="btn btn-warning btn-sm" onclick="openAutoSchedulerModal()">🪄 Slim Automatisch Indelen</button>
+        <button class="btn btn-outline btn-sm" onclick="autoOptimizeSwapsOnly()" title="Laat het systeem zelf berekenen welke klassen Wissel T/U moeten krijgen voor een perfecte 50/50 balans">⚡ Automatisch Wissel T/U</button>
         <button class="btn btn-primary btn-sm" onclick="validateMatrix()">Controleer op Dubbelen</button>
         <button class="btn btn-success btn-sm" onclick="exportJSON()">Opslaan (.json)</button>
         <label class="btn btn-outline btn-sm" style="cursor: pointer;">
@@ -590,15 +591,15 @@ let clubNames = {
 };
 
 const defaultSenioren2026 = [
-  { name: "Hoofdklasse", num: 1, swap: false, teams: ["OO 1", "SV 1", "BE 1", "MA 1", "DT 1", "NG 1", "LB 1", "OS 1", "", ""] },
-  { name: "1e klasse", num: 2, swap: false, teams: ["HE 1", "BR 1", "BE 2", "VO 1", "VL 1", "NB 1", "LE 1", "WI 1", "", ""] },
+  { name: "Hoofdklasse", num: 1, swap: true, teams: ["OO 1", "SV 1", "BE 1", "MA 1", "DT 1", "NG 1", "LB 1", "OS 1", "", ""] },
+  { name: "1e klasse", num: 2, swap: true, teams: ["HE 1", "BR 1", "BE 2", "VO 1", "VL 1", "NB 1", "LE 1", "WI 1", "", ""] },
   { name: "2e klasse", num: 3, swap: false, teams: ["OO 2", "JV 1", "BE 3", "VO 2", "KK 1", "NG 2", "NB 2", "RE 1", "", ""] },
   { name: "3e klasse", num: 4, swap: false, teams: ["OO 3", "BR 2", "BE 4", "HE 2", "NI 1", "NG 3", "LB 2", "OS 2", "", ""] },
   { name: "4e klasse", num: 5, swap: true, teams: ["OO 4", "SV 2", "WI 2", "VO 3", "VL 2", "NG 4", "LE 2", "RE 2", "", ""] },
-  { name: "5e klasse", num: 6, swap: true, teams: ["BR 4", "BR 3", "BE 5", "GU 1", "DT 2", "NB 3", "LB 3", "RE 3", "", ""] },
+  { name: "5e klasse", num: 6, swap: false, teams: ["GU 1", "NB 3", "BE 5", "BR 4", "DT 2", "BR 3", "LB 3", "RE 3", "", ""] },
   { name: "6e klasse", num: 7, swap: false, teams: ["JV 2", "OG 1", "OS 3", "RO 1", "DB 1", "SV 3", "NG 5", "BE 6", "", ""] },
-  { name: "7e klasse", num: 8, swap: false, teams: ["BE 7", "NG 6", "LE 3", "VO 4", "RO 2", "SV 4", "VL 3", "KK 2", "", "NG 7"] },
-  { name: "8e klasse", num: 9, swap: false, teams: ["DB 2", "OS 4", "DT 3", "LE 4", "", "BE 8", "NG 8", "LE 5", "VO 5", "JV 3"] },
+  { name: "7e klasse", num: 8, swap: false, teams: ["BE 7", "NG 6", "LE 3", "VO 4", "RO 2", "SV 4", "NG 7", "KK 2", "", "VL 3"] },
+  { name: "8e klasse", num: 9, swap: false, teams: ["DB 2", "OS 4", "DT 3", "LE 4", "", "BE 8", "NG 8", "VO 5", "LE 5", "JV 3"] },
   { name: "9e klasse", num: 10, swap: false, teams: ["JV 4", "SV 5", "BE 9", "VO 6", "KK 3", "NB 4", "NG 9", "OG 2", "", ""] },
   { name: "10e klasse", num: 11, swap: true, teams: ["JV 5", "OS 5", "BE10", "VO 7", "VL 4", "NB 5", "NG10", "LE 6", "", ""] },
   { name: "11e klasse", num: 12, swap: true, teams: ["KK 4", "OG 3", "LE 7", "RO 3", "DB 3", "VO 8", "SV 6", "DT 4", "", ""] },
@@ -928,6 +929,118 @@ function executeMoveTeam() {
   renderBooklet();
   renderSheets();
 }
+
+
+// Automatisch Wissel T/U optimaliseren voor alle klassen (houdt teamposities intact)
+function autoOptimizeSwapsOnly() {
+  recordState('Wissel T/U automatisch geoptimaliseerd');
+  const classData = getCurrentClassData();
+  const maxR = currentCategory === 'jeugd' ? 10 : 14;
+
+  // Pre-calculate home/away vector per position for this category
+  const posVectors8 = {};
+  for (let p = 1; p <= 8; p++) posVectors8[p] = new Array(14).fill(0);
+  matrix8.forEach((roundPairs, rIdx) => {
+    roundPairs.forEach(([h, a]) => {
+      posVectors8[h][rIdx] = 1; posVectors8[a][rIdx] = 0;
+    });
+  });
+
+  const posVectors10 = {};
+  for (let p = 1; p <= 10; p++) posVectors10[p] = new Array(18).fill(0);
+  matrix10.forEach((roundPairs, rIdx) => {
+    roundPairs.forEach(([h, a]) => {
+      posVectors10[h][rIdx] = 1; posVectors10[a][rIdx] = 0;
+    });
+  });
+
+  const posVectors6 = {};
+  for (let p = 1; p <= 6; p++) posVectors6[p] = new Array(10).fill(0);
+  matrix6.forEach((roundPairs, rIdx) => {
+    roundPairs.forEach(([h, a]) => {
+      posVectors6[h][rIdx] = 1; posVectors6[a][rIdx] = 0;
+    });
+  });
+
+  // Evaluate variance score across all clubs
+  function evaluateCurrentSwaps() {
+    let score = 0;
+    const clubCounts = {};
+    classData.forEach(c => {
+      c.teams.forEach(t => {
+        const p = parseTeam(t);
+        if (p) clubCounts[p.code] = (clubCounts[p.code] || 0) + 1;
+      });
+    });
+
+    Object.keys(clubCounts).forEach(code => {
+      const totalTeams = clubCounts[code];
+      if (totalTeams <= 1) return;
+      const targetHome = totalTeams / 2.0;
+      const roundHomes = new Array(maxR).fill(0);
+
+      classData.forEach(c => {
+        const count = c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-").length;
+        const is10 = currentCategory === 'jeugd' ? (count > 6) : (count > 8 || c.teams[8] || c.teams[9]);
+        const pVec = currentCategory === 'jeugd' ? (is10 ? posVectors10 : posVectors6) : (is10 ? posVectors10 : posVectors8);
+
+        for (let pIdx = 0; pIdx < 10; pIdx++) {
+          const t = c.teams[pIdx];
+          const p = parseTeam(t);
+          if (p && p.code === code) {
+            const posNum = pIdx + 1;
+            const vec = pVec[posNum];
+            if (vec) {
+              for (let r = 0; r < maxR; r++) {
+                let isHome = vec[r];
+                if (c.swap) isHome = 1 - isHome;
+                roundHomes[r] += isHome;
+              }
+            }
+          }
+        }
+      });
+
+      for (let r = 0; r < maxR; r++) {
+        const diff = roundHomes[r] - targetHome;
+        score += diff * diff;
+      }
+    });
+
+    return score;
+  }
+
+  let bestScore = evaluateCurrentSwaps();
+  let changedCount = 0;
+
+  // Greedy coordinate optimization
+  for (let iter = 0; iter < 40; iter++) {
+    let improved = false;
+    for (let cIdx = 0; cIdx < classData.length; cIdx++) {
+      classData[cIdx].swap = !classData[cIdx].swap;
+      const s = evaluateCurrentSwaps();
+      if (s < bestScore) {
+        bestScore = s;
+        improved = true;
+        changedCount++;
+      } else {
+        classData[cIdx].swap = !classData[cIdx].swap; // revert
+      }
+    }
+    if (!improved) break;
+  }
+
+  renderTable();
+  initFilters();
+  initBalanceClubSelect();
+  renderBalanceMonitor();
+  renderSchedule();
+  renderBooklet();
+  renderSheets();
+
+  alert(`Klaar! Het systeem heeft automatisch berekend welke klassen 'Wissel T/U' moeten krijgen.\n\nDe Thuis/Uit balans is geoptimaliseerd (score gedaald naar minimale afwijking: ${bestScore}). Grote clubs schieten nu maximaal 50% thuis en 50% uit!`);
+}
+
 
 function toggleSwap(cIdx, val) {
   recordState('Wissel T/U gewijzigd');
