@@ -211,6 +211,8 @@
         <strong id="matrix-section-title">Centrale Indeling Senioren:</strong> Gebruik <span style="font-weight:bold;">▲ / ▼</span> op élke cel om teams te verplaatsen of toe te wijzen.
       </div>
       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button class="btn btn-outline btn-sm" id="btn-undo" onclick="undoAction()" disabled title="Ongedaan maken (Ctrl+Z)">↩️ Ongedaan</button>
+        <button class="btn btn-outline btn-sm" id="btn-redo" onclick="redoAction()" disabled title="Opnieuw (Ctrl+Y)">↪️ Opnieuw</button>
         <button class="btn btn-outline btn-sm" onclick="addClass()">➕ Klasse Toevoegen</button>
         <button class="btn btn-outline btn-sm" onclick="resetToStandard()">Herstel Standaard</button>
         <button class="btn btn-warning btn-sm" onclick="openAutoSchedulerModal()">🪄 Slim Automatisch Indelen</button>
@@ -776,6 +778,7 @@ function promptDeleteSeason() {
 
 function addClass() {
   const classData = getCurrentClassData();
+  recordState('Klasse toegevoegd');
   const name = prompt("Voer de naam van de nieuwe klasse in (bijv. Klasse G of 13e klasse):");
   if (!name || name.trim() === "") return;
   const newNum = classData.length + 1;
@@ -897,6 +900,7 @@ function closeMoveModal() {
 }
 
 function executeMoveTeam() {
+  recordState('Team verplaatst');
   const classData = getCurrentClassData();
   if (activeMove.isEmpty) {
     const val = document.getElementById("move-team-choice").value;
@@ -926,6 +930,7 @@ function executeMoveTeam() {
 }
 
 function toggleSwap(cIdx, val) {
+  recordState('Wissel T/U gewijzigd');
   getCurrentClassData()[cIdx].swap = val;
   renderSchedule();
   renderBooklet();
@@ -933,6 +938,7 @@ function toggleSwap(cIdx, val) {
 }
 
 function updateTeam(cIdx, posIdx, val) {
+  recordState('Team aangepast');
   getCurrentClassData()[cIdx].teams[posIdx] = val.trim().toUpperCase();
   validateMatrix(false);
   updateStats();
@@ -978,6 +984,7 @@ function validateMatrix(showAlert = true) {
 function resetToStandard() {
   const catName = currentCategory === "jeugd" ? "Jeugd" : "Senioren";
   if (confirm(`Weet je zeker dat je ${catName} voor seizoen '${currentSeason}' wilt herstellen naar de standaardwaarden?`)) {
+    recordState('Herstel standaardwaarden');
     seasonsData[currentSeason][currentCategory] = JSON.parse(JSON.stringify(currentCategory === "jeugd" ? defaultJeugd2026 : defaultSenioren2026));
     renderTable();
     validateMatrix(false);
@@ -1872,6 +1879,7 @@ function renderBalanceMonitor() {
 
 // Auto-balancer for a selected club
 function autoBalanceClub() {
+  recordState('Club balanceren');
   const sel = document.getElementById("balance-club-select");
   if (!sel || !sel.value) return;
   const clubCode = sel.value;
@@ -2045,6 +2053,7 @@ function runAutoScheduler() {
   document.getElementById("auto-scheduler-status").innerText = "Bezig met berekenen van optimale contra-paren en Thuis/Uit balans...";
 
   setTimeout(() => {
+    recordState('Automatisch indelen');
     const optimizedClasses = solveOptimalPositions(parsed);
     
     // Save into active season
@@ -2410,6 +2419,7 @@ function saveCalendarData() {
 // PRE-FLIGHT CHECK (AUDIT RAPPORT)
 // -------------------------------------------------------------
 function autoFixPreFlight() {
+  recordState('Automatisch herstellen');
   const classData = getCurrentClassData();
   
   // 1. Convert current classData to format needed by solver
@@ -2668,9 +2678,123 @@ function runPreFlightCheck() {
 }
 
 
+
+// -------------------------------------------------------------
+// ONGEDAN MAKEN (UNDO) & OPNIEUW (REDO) SYSTEEM
+// -------------------------------------------------------------
+let undoStack = [];
+let redoStack = [];
+const MAX_UNDO_HISTORY = 40;
+
+function recordState(actionName = "Wijziging") {
+  const currentData = JSON.parse(JSON.stringify(getCurrentClassData()));
+  undoStack.push({
+    category: currentCategory,
+    season: currentSeason,
+    data: currentData,
+    desc: actionName
+  });
+  if (undoStack.length > MAX_UNDO_HISTORY) undoStack.shift();
+  redoStack = []; // Clear redo stack on new action
+  updateUndoRedoUI();
+}
+
+function undoAction() {
+  if (undoStack.length === 0) return;
+  const currentData = JSON.parse(JSON.stringify(getCurrentClassData()));
+  const previousState = undoStack.pop();
+  
+  redoStack.push({
+    category: currentCategory,
+    season: currentSeason,
+    data: currentData,
+    desc: previousState.desc
+  });
+
+  seasonsData[previousState.season][previousState.category] = previousState.data;
+  if (currentCategory !== previousState.category) {
+    setCategory(previousState.category);
+  } else {
+    renderTable();
+    initFilters();
+    initBalanceClubSelect();
+    renderBalanceMonitor();
+    renderSchedule();
+    renderBooklet();
+    renderSheets();
+  }
+  updateUndoRedoUI();
+}
+
+function redoAction() {
+  if (redoStack.length === 0) return;
+  const currentData = JSON.parse(JSON.stringify(getCurrentClassData()));
+  const nextState = redoStack.pop();
+
+  undoStack.push({
+    category: currentCategory,
+    season: currentSeason,
+    data: currentData,
+    desc: nextState.desc
+  });
+
+  seasonsData[nextState.season][nextState.category] = nextState.data;
+  if (currentCategory !== nextState.category) {
+    setCategory(nextState.category);
+  } else {
+    renderTable();
+    initFilters();
+    initBalanceClubSelect();
+    renderBalanceMonitor();
+    renderSchedule();
+    renderBooklet();
+    renderSheets();
+  }
+  updateUndoRedoUI();
+}
+
+function updateUndoRedoUI() {
+  const btnUndo = document.getElementById("btn-undo");
+  const btnRedo = document.getElementById("btn-redo");
+  if (btnUndo) {
+    btnUndo.disabled = undoStack.length === 0;
+    btnUndo.title = undoStack.length > 0 
+      ? `Ongedaan maken: ${undoStack[undoStack.length - 1].desc} (Ctrl+Z)` 
+      : "Niets om ongedaan te maken (Ctrl+Z)";
+  }
+  if (btnRedo) {
+    btnRedo.disabled = redoStack.length === 0;
+    btnRedo.title = redoStack.length > 0 
+      ? `Opnieuw: ${redoStack[redoStack.length - 1].desc} (Ctrl+Y)` 
+      : "Niets om opnieuw uit te voeren (Ctrl+Y)";
+  }
+}
+
+// Keyboard shortcuts Ctrl+Z & Ctrl+Y
+document.addEventListener("keydown", function(e) {
+  // If user is actively typing in a normal text input or textarea, let the browser handle typing undo
+  const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+  const isTyping = activeTag === "input" || activeTag === "textarea";
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    if (!isTyping) {
+      e.preventDefault();
+      undoAction();
+    }
+  } else if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") || 
+             ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z")) {
+    if (!isTyping) {
+      e.preventDefault();
+      redoAction();
+    }
+  }
+});
+
+
 renderSeasonSelector();
 renderTable();
 initFilters();
+updateUndoRedoUI();
 initBalanceClubSelect();
 renderBalanceMonitor();
 </script>
