@@ -542,23 +542,34 @@
 </div>
 
 <!-- MODAL: MOVE OR ASSIGN TEAM -->
+<!-- MODAL: MOVE OR ASSIGN TEAM -->
 <div class="modal-overlay" id="moveTeamModal">
   <div class="modal-box">
     <h3 id="move-team-title">Team Verplaatsen of Toewijzen</h3>
     <p id="move-team-desc" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;"></p>
     
     <div class="form-group" id="move-team-select-wrap" style="display:none;">
-      <label>Kies Team om hier te plaatsen:</label>
-      <select id="move-team-choice"></select>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+        <label style="margin-bottom:0;">Kies Team om hier te plaatsen:</label>
+        <label style="font-size: 0.78rem; color: var(--primary); font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+          <input type="checkbox" id="move-filter-range-check" checked onchange="populateTeamChoices()"> Max &plusmn;2 klassen
+        </label>
+      </div>
+      <select id="move-team-choice" style="font-size: 0.88rem; padding: 7px;"></select>
     </div>
 
     <div class="form-group" id="move-target-class-wrap">
-      <label>Doelklasse:</label>
-      <select id="move-target-class"></select>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+        <label style="margin-bottom:0;">Doelklasse:</label>
+        <label style="font-size: 0.78rem; color: var(--primary); font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+          <input type="checkbox" id="move-filter-target-range-check" checked onchange="populateTargetClasses()"> Max &plusmn;2 klassen
+        </label>
+      </div>
+      <select id="move-target-class" style="font-size: 0.88rem; padding: 7px;"></select>
     </div>
     <div class="form-group" id="move-target-pos-wrap">
       <label>Positie in doelklasse (1 t/m 10):</label>
-      <select id="move-target-pos">
+      <select id="move-target-pos" style="font-size: 0.88rem; padding: 7px;">
         <option value="1">Positie 1</option><option value="2">Positie 2</option>
         <option value="3">Positie 3</option><option value="4">Positie 4</option>
         <option value="5">Positie 5</option><option value="6">Positie 6</option>
@@ -567,14 +578,14 @@
       </select>
     </div>
     <div class="form-group" id="move-swap-wrap">
-      <label><input type="checkbox" id="move-swap-check" checked> Wissel met team dat al op die positie staat</label>
+      <label style="cursor: pointer;"><input type="checkbox" id="move-swap-check" checked> Wissel met team dat al op die positie staat</label>
     </div>
     <div style="display:flex; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeMoveModal()">Annuleren</button>
       <button class="btn btn-primary" onclick="executeMoveTeam()">Bevestig</button>
     </div>
   </div>
-</div>
+</div>v>
 
 <script>
 // Active category: 'senioren' or 'jeugd'
@@ -836,7 +847,93 @@ function renderTable() {
   renderBalanceMonitor();
 }
 
-let activeMove = { fromC: null, fromPos: null, team: "", isEmpty: false };
+
+let activeMove = { fromC: null, fromPos: null, team: "", isEmpty: false, direction: "up" };
+
+function populateTeamChoices() {
+  const classData = getCurrentClassData();
+  const teamChoiceSel = document.getElementById("move-team-choice");
+  if (!teamChoiceSel) return;
+  teamChoiceSel.innerHTML = "";
+
+  const limitNearby = document.getElementById("move-filter-range-check") ? document.getElementById("move-filter-range-check").checked : true;
+  const currentCIdx = activeMove.fromC;
+
+  // Group teams by class
+  const classGroups = [];
+  classData.forEach((c, cI) => {
+    const diff = cI - currentCIdx;
+    if (limitNearby && Math.abs(diff) > 2) return;
+
+    let diffLabel = "";
+    if (diff === -2) diffLabel = " (2 klassen hoger)";
+    else if (diff === -1) diffLabel = " (1 klasse hoger)";
+    else if (diff === 0) diffLabel = " (deze klasse)";
+    else if (diff === 1) diffLabel = " (1 klasse lager)";
+    else if (diff === 2) diffLabel = " (2 klassen lager)";
+
+    const teamsInThisClass = [];
+    c.teams.forEach((t, pI) => {
+      if (t && t.trim() !== "" && t.trim() !== "-") {
+        teamsInThisClass.push({ team: t, classIndex: cI, posIndex: pI, posNum: pI + 1 });
+      }
+    });
+
+    if (teamsInThisClass.length > 0) {
+      classGroups.push({
+        className: `${c.name}${diffLabel}`,
+        teams: teamsInThisClass
+      });
+    }
+  });
+
+  if (classGroups.length === 0) {
+    teamChoiceSel.innerHTML = "<option value=''>Geen teams gevonden in omliggende klassen</option>";
+    return;
+  }
+
+  classGroups.forEach(cg => {
+    let optgroup = document.createElement("optgroup");
+    optgroup.label = cg.className;
+    cg.teams.forEach(item => {
+      let opt = document.createElement("option");
+      opt.value = `${item.classIndex}|${item.posIndex}`;
+      opt.innerText = `${item.team} (pos ${item.posNum})`;
+      optgroup.appendChild(opt);
+    });
+    teamChoiceSel.appendChild(optgroup);
+  });
+}
+
+function populateTargetClasses() {
+  const classData = getCurrentClassData();
+  const selClass = document.getElementById("move-target-class");
+  if (!selClass) return;
+  selClass.innerHTML = "";
+
+  const limitNearby = document.getElementById("move-filter-target-range-check") ? document.getElementById("move-filter-target-range-check").checked : true;
+  const currentCIdx = activeMove.fromC;
+  const isUp = activeMove.direction === 'up';
+  const defaultTargetCIdx = isUp ? Math.max(0, currentCIdx - 1) : Math.min(classData.length - 1, currentCIdx + 1);
+
+  classData.forEach((c, idx) => {
+    const diff = idx - currentCIdx;
+    if (limitNearby && Math.abs(diff) > 2) return;
+
+    let diffLabel = "";
+    if (diff === -2) diffLabel = " (▲▲ 2 klassen hoger)";
+    else if (diff === -1) diffLabel = " (▲ 1 klasse hoger)";
+    else if (diff === 0) diffLabel = " (deze klasse)";
+    else if (diff === 1) diffLabel = " (▼ 1 klasse lager)";
+    else if (diff === 2) diffLabel = " (▼▼ 2 klassen lager)";
+
+    const opt = document.createElement("option");
+    opt.value = idx;
+    opt.selected = (idx === defaultTargetCIdx);
+    opt.innerText = `${c.name}${diffLabel}`;
+    selClass.appendChild(opt);
+  });
+}
 
 function openMoveModal(cIdx, posIdx, direction) {
   const classData = getCurrentClassData();
@@ -854,42 +951,23 @@ function openMoveModal(cIdx, posIdx, direction) {
 
   if (isEmpty) {
     title.innerText = `Plaats Team op Positie ${posIdx + 1} (${classData[cIdx].name})`;
-    desc.innerText = "Kies welk team je wilt toewijzen aan dit lege vakje:";
+    desc.innerText = "Kies welk team uit de omliggende klassen (max 2 stijgen/zakken) je hier wilt plaatsen:";
     choiceWrap.style.display = "block";
     targetClassWrap.style.display = "none";
     targetPosWrap.style.display = "none";
     swapWrap.style.display = "none";
 
-    const teamChoiceSel = document.getElementById("move-team-choice");
-    teamChoiceSel.innerHTML = "";
-    const allTeams = [];
-    classData.forEach((c, cI) => {
-      c.teams.forEach((t, pI) => {
-        if (t && t.trim() !== "" && t.trim() !== "-") {
-          allTeams.push({ team: t, classIndex: cI, posIndex: pI, className: c.name });
-        }
-      });
-    });
-    allTeams.sort((a,b) => a.team.localeCompare(b.team));
-    allTeams.forEach(t => {
-      teamChoiceSel.innerHTML += `<option value="${t.classIndex}|${t.posIndex}">${t.team} (staat nu in ${t.className}, pos ${t.posIndex + 1})</option>`;
-    });
+    populateTeamChoices();
   } else {
     const isUp = direction === 'up';
     title.innerText = isUp ? `Promoot of verplaats ${team}` : `Degradeer of verplaats ${team}`;
-    desc.innerText = `Verplaats ${team} vanuit de ${classData[cIdx].name} (positie ${posIdx + 1}).`;
+    desc.innerText = `Verplaats ${team} vanuit de ${classData[cIdx].name} (positie ${posIdx + 1}) naar een andere klasse:`;
     choiceWrap.style.display = "none";
     targetClassWrap.style.display = "block";
     targetPosWrap.style.display = "block";
     swapWrap.style.display = "block";
 
-    const selClass = document.getElementById("move-target-class");
-    selClass.innerHTML = "";
-    const targetCIdx = isUp ? Math.max(0, cIdx - 1) : Math.min(classData.length - 1, cIdx + 1);
-    classData.forEach((c, idx) => {
-      selClass.innerHTML += `<option value="${idx}" ${idx === targetCIdx ? 'selected' : ''}>${c.name}</option>`;
-    });
-
+    populateTargetClasses();
     document.getElementById("move-target-pos").value = (posIdx + 1);
   }
 
