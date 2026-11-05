@@ -180,6 +180,7 @@
       <label for="season-select">Seizoen:</label>
       <select id="season-select" class="season-select" onchange="changeSeason(this.value)"></select>
     </div>
+    <button class="btn btn-primary btn-sm" onclick="openPreFlightModal()" title="Controleer de hele competitie op fouten vóór publicatie">🔍 Pre-Flight Check</button>
     <button class="btn btn-warning btn-sm" onclick="promptNewSeason()">➕ Nieuw Seizoen</button>
     <button class="btn btn-outline btn-sm" onclick="promptDeleteSeason()" title="Huidig seizoen verwijderen">🗑️</button>
   </div>
@@ -191,6 +192,7 @@
   <button class="tab-btn" onclick="showTab('tab-schedule')">3. Speelschema Tabel</button>
   <button class="tab-btn" onclick="showTab('tab-sheets')">4. Verzamelformulieren</button>
   <button class="tab-btn" onclick="showTab('tab-exports')">5. Exports</button>
+  <button class="tab-btn" onclick="showTab('tab-calendar')">6. Wedstrijdkalender & Speeldata</button>
   <button class="tab-btn" onclick="showTab('tab-info')">Verenigingen & Clubbeheer</button>
 </div>
 
@@ -453,6 +455,55 @@
         </div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- TAB 6: WEDSTRIJDKALENDER & SPEELDATA -->
+<div id="tab-calendar" style="display: none;">
+  <div class="card no-print">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+      <div>
+        <h3 style="color: var(--primary); font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+          📅 Wedstrijdkalender & Speeldata (${currentSeason})
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.86rem; margin-top: 2px;">
+          Koppel echte zondagen aan de wedstrijddagen (voor 8-tallen, 9/10-tallen en junioren). Als het schema nog niet klaar is, kun je de datumkoppeling eenvoudig uitzetten.
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <label style="display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 0.88rem; background: #e0f2fe; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
+          <input type="checkbox" id="calendar-link-enabled" onchange="toggleCalendarLink(this.checked)" checked>
+          Datums koppelen aan formulieren & boekjes
+        </label>
+        <button class="btn btn-outline btn-sm" onclick="resetCalendarToDefault()">Herstel 2026-2027 Data</button>
+        <button class="btn btn-success btn-sm" onclick="saveCalendarData()">💾 Kalender Opslaan</button>
+      </div>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.82rem; color: #475569;">
+      <strong>Hoe dit samenwerkt:</strong>
+      <span style="display: block; margin-top: 3px;">
+        &bull; <strong>8-tallen klassen (14 rondes):</strong> spelen op de 14 data uit de kolom <em>'Senioren (8 teams)'</em>.<br>
+        &bull; <strong>9/10-tallen klassen (18 rondes):</strong> starten eerder (bijv. 23 aug) en spelen op de 18 data uit de kolom <em>'Senioren (9 teams)'</em>.<br>
+        &bull; <strong>Is het rooster nog niet bekend?</strong> Vink dan hierboven <em>'Datums koppelen'</em> uit. Dan blijft op de formulieren netjes <code>datum: ___________________</code> staan!
+      </span>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="data-table" id="calendarTable">
+        <thead>
+          <tr style="background: #e2e8f0;">
+            <th style="width: 18%;">Datum</th>
+            <th style="width: 14%; text-align: center;">Junioren Speeldag</th>
+            <th style="width: 32%;">Evenement / Notitie (LSC, Inhaal, Feestdag)</th>
+            <th style="width: 18%; text-align: center;">Senioren (8 teams)</th>
+            <th style="width: 18%; text-align: center;">Senioren (9/10 teams)</th>
+          </tr>
+        </thead>
+        <tbody id="calendarBody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -1134,7 +1185,7 @@ function renderBooklet() {
     <div class="booklet-day-block">
       <div class="booklet-day-header">
         <h2>Competitieprogramma NKB – KTO ${currentSeason} (${catLabel})</h2>
-        <h3>Wedstrijddag ${rNum}</h3>
+        <h3>Wedstrijddag ${rNum} ${getMatchDate(rNum, false) ? `<span style="font-size:0.95rem; font-weight:normal; color:#475569;">(${getMatchDate(rNum, false)})</span>` : ""}</h3>
         ${mode === "club" ? `<p style="font-weight:bold; color:#0369a1; font-size:1.05rem; margin-top:4px;">Programma voor: ${clubNames[selectedClub] || selectedClub}</p>` : ''}
       </div>
     `;
@@ -1212,7 +1263,7 @@ function renderSheets() {
         <div class="sheet-title-right">${catLabel}</div>
       </div>
       <div class="sheet-sub">
-        Verzamelformulier competitiewedstrijden ${currentSeason} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; datum: ___________________
+        Verzamelformulier competitiewedstrijden ${currentSeason} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; datum: ${getMatchDate(round, list.some(m => m.classNum >= 8 && m.classNum <= 9)) || "___________________"}
       </div>
       <div class="sheet-day-row">
         wedstrijddag &nbsp;&nbsp;&nbsp;&nbsp; ${round} &nbsp;&nbsp; ${cName}
@@ -1649,6 +1700,31 @@ function downloadWordDocument(filename, title, bodyHtml) {
   </div>
 </div>
 
+<!-- MODAL: PRE-FLIGHT CHECK (AUDIT RAPPORT) -->
+<div class="modal-overlay" id="preFlightModal">
+  <div class="modal-box" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--border); padding-bottom: 10px;">
+      <div>
+        <h3 style="color: var(--primary); font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+          🔍 Pre-Flight Check (Audit Rapport)
+        </h3>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Controleert automatisch alle 7 kritische kwaliteitspunten vóórdat het competitieprogramma naar de clubs gaat.
+        </p>
+      </div>
+      <div id="preflight-badge-overall" style="font-size: 1.1rem; font-weight: bold;"></div>
+    </div>
+
+    <div id="preflight-results-wrap" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px;">
+      <button class="btn btn-success btn-sm" onclick="runAutoScheduler(); setTimeout(runPreFlightCheck, 200);">
+        ⚡ Automatisch Herstellen & Optimaliseren
+      </button>
+      <button class="btn btn-outline" onclick="closePreFlightModal()">Sluiten</button>
+    </div>
+  </div>
+</div>
 </body></html>`;
   const blob = new Blob(['\ufeff' + header + bodyHtml + footer], { type: 'application/msword;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -1669,9 +1745,11 @@ function showTab(tabId) {
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   event.target.classList.add("active");
 
+  document.getElementById("tab-calendar").style.display = tabId === "tab-calendar" ? "block" : "none";
   if (tabId === "tab-booklet") renderBooklet();
   if (tabId === "tab-schedule") renderSchedule();
   if (tabId === "tab-sheets") renderSheets();
+  if (tabId === "tab-calendar") renderCalendarTable();
 }
 
 
@@ -2174,6 +2252,387 @@ function solveOptimalPositions(inputClasses) {
 }
 
 
+
+// -------------------------------------------------------------
+// WEDSTRIJDKALENDER & SPEELDATA MODULE
+// -------------------------------------------------------------
+let calendarLinkEnabled = true;
+
+const defaultCalendarData = [
+  { date: "zo 16 augustus", jun: false, event: "einde schoolvakantie", r8: null, r9: null },
+  { date: "zo 23 augustus", jun: false, event: "", r8: null, r9: 1 },
+  { date: "zo 30 augustus", jun: false, event: "", r8: null, r9: 2 },
+  { date: "zo 6 september", jun: true, event: "Zilveren kloot", r8: null, r9: null },
+  { date: "zo 13 september", jun: true, event: "", r8: 1, r9: 3 },
+  { date: "zo 20 september", jun: true, event: "", r8: 2, r9: 4 },
+  { date: "zo 27 september", jun: true, event: "LSC 1", r8: null, r9: null },
+  { date: "zo 4 oktober", jun: true, event: "", r8: 3, r9: 5 },
+  { date: "zo 11 oktober", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 18 oktober", jun: true, event: "", r8: 4, r9: 6 },
+  { date: "zo 25 oktober", jun: true, event: "LSC 2", r8: null, r9: null },
+  { date: "zo 1 november", jun: true, event: "", r8: 5, r9: 7 },
+  { date: "zo 8 november", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 15 november", jun: true, event: "", r8: 6, r9: 8 },
+  { date: "zo 22 november", jun: true, event: "LSC 3", r8: null, r9: null },
+  { date: "zo 29 november", jun: true, event: "", r8: 7, r9: 9 },
+  { date: "zo 6 december", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 13 december", jun: true, event: "", r8: 8, r9: 10 },
+  { date: "zo 20 december", jun: true, event: "LSC 4", r8: null, r9: null },
+  { date: "zo 27 december", jun: true, event: "Inhaal", r8: null, r9: null },
+  { date: "zo 3 januari", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 10 januari", jun: true, event: "Inhaal", r8: null, r9: null },
+  { date: "zo 17 januari", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 24 januari", jun: true, event: "", r8: null, r9: 11 },
+  { date: "zo 31 januari", jun: false, event: "Carnaval Albergen", r8: null, r9: 12 },
+  { date: "zo 7 februari", jun: false, event: "Carnaval", r8: null, r9: null },
+  { date: "zo 14 februari", jun: true, event: "LSC inhaal", r8: null, r9: null },
+  { date: "zo 21 februari", jun: true, event: "", r8: 9, r9: 13 },
+  { date: "zo 28 februari", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 7 maart", jun: true, event: "", r8: 10, r9: 14 },
+  { date: "zo 14 maart", jun: true, event: "LSC 5", r8: null, r9: null },
+  { date: "zo 21 maart", jun: true, event: "", r8: 11, r9: 15 },
+  { date: "zo 28 maart", jun: false, event: "Pasen", r8: null, r9: null },
+  { date: "zo 4 april", jun: true, event: "", r8: 12, r9: 16 },
+  { date: "zo 11 april", jun: true, event: "LSC 6", r8: null, r9: null },
+  { date: "zo 18 april", jun: true, event: "", r8: 13, r9: 17 },
+  { date: "zo 25 april", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 2 mei", jun: true, event: "", r8: 14, r9: 18 },
+  { date: "zo 9 mei", jun: true, event: "LSC 7 (finale)", r8: null, r9: null },
+  { date: "zo 16 mei", jun: false, event: "Pinksteren", r8: null, r9: null },
+  { date: "zo 23 mei", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 30 mei", jun: true, event: "selectie Zilveren Kloat / Inhaal", r8: null, r9: null },
+  { date: "zo 6 juni", jun: true, event: "", r8: null, r9: null },
+  { date: "zo 13 juni", jun: true, event: "NK Junioren", r8: null, r9: null },
+  { date: "zo 20 juni", jun: true, event: "Inhaal/beslis", r8: null, r9: null },
+  { date: "zo 27 juni", jun: false, event: "NK Senioren", r8: null, r9: null },
+  { date: "za 3 juli", jun: false, event: "Cupfinales Straat", r8: null, r9: null },
+  { date: "zo 4 juli", jun: false, event: "Cupfinales Veld KTO 8 pers", r8: null, r9: null },
+  { date: "zo 11 juli", jun: false, event: "Cupfinales Veld begin vakantie", r8: null, r9: null }
+];
+
+let seasonsCalendar = {
+  "2026 - 2027": JSON.parse(JSON.stringify(defaultCalendarData))
+};
+
+function getCurrentCalendar() {
+  if (!seasonsCalendar[currentSeason]) {
+    seasonsCalendar[currentSeason] = JSON.parse(JSON.stringify(defaultCalendarData));
+  }
+  return seasonsCalendar[currentSeason];
+}
+
+function toggleCalendarLink(checked) {
+  calendarLinkEnabled = checked;
+  renderBooklet();
+  renderSheets();
+}
+
+function getMatchDate(roundNum, is10Class) {
+  if (!calendarLinkEnabled) return null;
+  const cal = getCurrentCalendar();
+  
+  if (currentCategory === 'jeugd') {
+    // For youth, match roundNum to the Nth youth competition Sunday
+    let junCounter = 0;
+    for (let item of cal) {
+      if (item.jun && !item.event.toLowerCase().includes("lsc") && !item.event.toLowerCase().includes("inhaal")) {
+        junCounter++;
+        if (junCounter === roundNum) return item.date;
+      }
+    }
+    return null;
+  }
+
+  // For seniors:
+  for (let item of cal) {
+    if (is10Class && item.r9 === roundNum) return item.date;
+    if (!is10Class && item.r8 === roundNum) return item.date;
+  }
+  return null;
+}
+
+function renderCalendarTable() {
+  const cal = getCurrentCalendar();
+  const tbody = document.getElementById("calendarBody");
+  if (!tbody) return;
+
+  let html = "";
+  cal.forEach((row, idx) => {
+    html += `
+      <tr>
+        <td><input type="text" style="width:100%; border:1px solid #cbd5e1; padding:4px 6px; border-radius:4px; font-weight:bold;" value="${row.date}" onchange="updateCalendarRow(${idx}, 'date', this.value)"></td>
+        <td style="text-align:center;">
+          <input type="checkbox" ${row.jun ? 'checked' : ''} onchange="updateCalendarRow(${idx}, 'jun', this.checked)">
+        </td>
+        <td><input type="text" style="width:100%; border:1px solid #cbd5e1; padding:4px 6px; border-radius:4px;" value="${row.event}" placeholder="Notitie..." onchange="updateCalendarRow(${idx}, 'event', this.value)"></td>
+        <td style="text-align:center;">
+          <input type="number" min="1" max="14" style="width:60px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:4px;" value="${row.r8 !== null ? row.r8 : ''}" placeholder="-" onchange="updateCalendarRow(${idx}, 'r8', this.value)">
+        </td>
+        <td style="text-align:center;">
+          <input type="number" min="1" max="18" style="width:60px; text-align:center; padding:4px; border:1px solid #cbd5e1; border-radius:4px;" value="${row.r9 !== null ? row.r9 : ''}" placeholder="-" onchange="updateCalendarRow(${idx}, 'r9', this.value)">
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+function updateCalendarRow(idx, field, val) {
+  const cal = getCurrentCalendar();
+  if (field === 'jun') cal[idx].jun = val;
+  else if (field === 'r8') cal[idx].r8 = val ? parseInt(val) : null;
+  else if (field === 'r9') cal[idx].r9 = val ? parseInt(val) : null;
+  else cal[idx][field] = val;
+
+  renderBooklet();
+  renderSheets();
+}
+
+function resetCalendarToDefault() {
+  if (confirm(`Weet je zeker dat je de wedstrijdkalender voor '${currentSeason}' wilt herstellen naar de officiële data?`)) {
+    seasonsCalendar[currentSeason] = JSON.parse(JSON.stringify(defaultCalendarData));
+    renderCalendarTable();
+    renderBooklet();
+    renderSheets();
+  }
+}
+
+function saveCalendarData() {
+  alert("Kalenderdata is succesvol opgeslagen voor het huidige seizoen!");
+}
+
+
+// -------------------------------------------------------------
+// PRE-FLIGHT CHECK (AUDIT RAPPORT)
+// -------------------------------------------------------------
+function openPreFlightModal() {
+  document.getElementById("preFlightModal").style.display = "flex";
+  runPreFlightCheck();
+}
+
+function closePreFlightModal() {
+  document.getElementById("preFlightModal").style.display = "none";
+}
+
+function runPreFlightCheck() {
+  const classData = getCurrentClassData();
+  const matches = generateMatches();
+  const resultsWrap = document.getElementById("preflight-results-wrap");
+  const badgeOverall = document.getElementById("preflight-badge-overall");
+
+  let totalPoints = 100;
+  const issues = [];
+  const passes = [];
+
+  // 1. Dubbele teamplaatsingen
+  const seenTeams = {};
+  const duplicateTeams = [];
+  classData.forEach(c => {
+    c.teams.forEach(t => {
+      if (!t || t.trim() === "" || t.trim() === "-") return;
+      const code = t.replace(/\s+/g, "");
+      if (seenTeams[code]) {
+        duplicateTeams.push(`${t} (staat in ${seenTeams[code]} én ${c.name})`);
+      } else {
+        seenTeams[code] = c.name;
+      }
+    });
+  });
+
+  if (duplicateTeams.length > 0) {
+    totalPoints -= 30;
+    issues.push({
+      title: "❌ Dubbele teamindelingen gedetecteerd",
+      desc: duplicateTeams.join("<br>"),
+      type: "bad"
+    });
+  } else {
+    passes.push({
+      title: `✅ Alle ${Object.keys(seenTeams).length} teams zijn uniek ingedeeld`,
+      desc: "Geen enkel team staat dubbel in de matrix."
+    });
+  }
+
+  // 2. Intra-class zusterteam conflict (spelen ze ooit tegelijk thuis?)
+  const sisterConflicts = [];
+  classData.forEach(c => {
+    const clubTeams = {};
+    c.teams.forEach((t, posIdx) => {
+      const p = parseTeam(t);
+      if (p) {
+        if (!clubTeams[p.code]) clubTeams[p.code] = [];
+        clubTeams[p.code].push({ pos: posIdx + 1, name: t });
+      }
+    });
+
+    Object.keys(clubTeams).forEach(code => {
+      const list = clubTeams[code];
+      if (list.length >= 2) {
+        // Check if they play home together on any round
+        const pos1 = list[0].pos;
+        const pos2 = list[1].pos;
+        let conflictRounds = 0;
+        const maxR = currentCategory === 'jeugd' ? 10 : (c.is10 ? 18 : 14);
+        const matrix = (currentCategory === 'jeugd') ? matrix6 : (c.is10 ? matrix10 : matrix8);
+
+        matrix.forEach((pairs, rIdx) => {
+          let h1 = false, h2 = false;
+          pairs.forEach(pair => {
+            let h = pair[0];
+            if (c.swap) h = pair[1];
+            if (h === pos1) h1 = true;
+            if (h === pos2) h2 = true;
+          });
+          if (h1 && h2) conflictRounds++;
+        });
+
+        if (conflictRounds > 0) {
+          sisterConflicts.push(`${list[0].name} & ${list[1].name} in ${c.name}: spelen ${conflictRounds}x tegelijk thuis!`);
+        }
+      }
+    });
+  });
+
+  if (sisterConflicts.length > 0) {
+    totalPoints -= 25;
+    issues.push({
+      title: "⚠️ Zusterteam baanconflict (zelfde klasse)",
+      desc: sisterConflicts.join("<br>") + "<br><em>Oplossing: zet zusterteams op contra-posities (3 & 8 of 4 & 6).</em>",
+      type: "bad"
+    });
+  } else {
+    passes.push({
+      title: "✅ Zusterteams in dezelfde klasse staan op contra-posities",
+      desc: "Zusterteams spelen nooit tegelijk thuis op de eigen baan."
+    });
+  }
+
+  // 3. Reeksen Thuis/Uit (> 2x achtereen thuis of uit)
+  const streakIssues = [];
+  const teamMatchesMap = {};
+  matches.forEach(m => {
+    if (!teamMatchesMap[m.home.full]) teamMatchesMap[m.home.full] = [];
+    teamMatchesMap[m.home.full].push({ r: m.round, type: 'T' });
+    if (!teamMatchesMap[m.away.full]) teamMatchesMap[m.away.full] = [];
+    teamMatchesMap[m.away.full].push({ r: m.round, type: 'U' });
+  });
+
+  Object.keys(teamMatchesMap).forEach(tName => {
+    const list = teamMatchesMap[tName].sort((a,b) => a.r - b.r);
+    let curStreak = 0;
+    let curType = '';
+    let maxStreak = 0;
+    let maxType = '';
+
+    list.forEach(item => {
+      if (item.type === curType) {
+        curStreak++;
+      } else {
+        curStreak = 1;
+        curType = item.type;
+      }
+      if (curStreak > maxStreak) {
+        maxStreak = curStreak;
+        maxType = curType;
+      }
+    });
+
+    if (maxStreak > 2) {
+      streakIssues.push(`${tName}: ${maxStreak}x achtereen ${maxType === 'T' ? 'thuis' : 'uit'}`);
+    }
+  });
+
+  if (streakIssues.length > 0) {
+    totalPoints -= 15;
+    issues.push({
+      title: "⚠️ Ongunstige Thuis/Uit-reeksen (> 2x achtereen)",
+      desc: streakIssues.slice(0, 6).join("<br>") + (streakIssues.length > 6 ? `<br><em>...en nog ${streakIssues.length - 6} teams</em>` : ""),
+      type: "warning"
+    });
+  } else {
+    passes.push({
+      title: "✅ Thuis/Uit-reeksen optimaal verdeeld",
+      desc: "Geen enkel team heeft meer dan 2x achter elkaar thuis of uit."
+    });
+  }
+
+  // 4. Baanbezetting / Thuis-Uit balans per club
+  let heavyImbalanceClubs = 0;
+  Object.keys(clubNames).forEach(code => {
+    const rData = getClubHomeAwayRounds(code);
+    const maxR = currentCategory === 'jeugd' ? 10 : 14;
+    for (let r = 1; r <= maxR; r++) {
+      const d = rData[r];
+      if (d && Math.abs(d.home - d.away) >= 4) {
+        heavyImbalanceClubs++;
+        break;
+      }
+    }
+  });
+
+  if (heavyImbalanceClubs > 0) {
+    totalPoints -= 15;
+    issues.push({
+      title: `⚠️ Grote Thuis/Uit onbalans bij ${heavyImbalanceClubs} vereniging(en)`,
+      desc: "Sommige clubs hebben een te groot verschil tussen het aantal uit- en thuiswedstrijden op één zondag. Gebruik de knop '⚡ Automatisch Balanceren' om dit op te lossen.",
+      type: "warning"
+    });
+  } else {
+    passes.push({
+      title: "✅ Baanbezetting & Thuis/Uit balans per vereniging in evenwicht",
+      desc: "Grote clubs spelen wekelijks netjes evenredig thuis en uit."
+    });
+  }
+
+  // 5. Datums gekoppeld
+  if (!calendarLinkEnabled) {
+    issues.push({
+      title: "ℹ️ Datumkoppeling staat uitgeschakeld",
+      desc: "Er worden lege datumlijnen (<code>datum: _________</code>) geprint op de verzamelformulieren. Dit is normaal als de seizoenskalender nog niet definitief is.",
+      type: "info"
+    });
+  } else {
+    passes.push({
+      title: "✅ Speeldata zijn gekoppeld aan wedstrijddagen",
+      desc: "De exacte zondagen verschijnen automatisch op de formulieren en in het programmaboekje."
+    });
+  }
+
+  totalPoints = Math.max(0, totalPoints);
+
+  if (totalPoints >= 90) {
+    badgeOverall.innerHTML = `<span style="color:#059669; background:#ecfdf5; border:1.5px solid #10b981; padding:4px 10px; border-radius:6px;">Score: ${totalPoints}% &bull; Goedgekeurd voor Publicatie ✅</span>`;
+  } else if (totalPoints >= 70) {
+    badgeOverall.innerHTML = `<span style="color:#d97706; background:#fffbeb; border:1.5px solid #f59e0b; padding:4px 10px; border-radius:6px;">Score: ${totalPoints}% &bull; Aandachtspunten Aanwezig ⚠️</span>`;
+  } else {
+    badgeOverall.innerHTML = `<span style="color:#dc2626; background:#fef2f2; border:1.5px solid #ef4444; padding:4px 10px; border-radius:6px;">Score: ${totalPoints}% &bull; Conflicten Oplossen ❌</span>`;
+  }
+
+  let html = "";
+  issues.forEach(item => {
+    const bg = item.type === "bad" ? "#fef2f2" : (item.type === "warning" ? "#fffbeb" : "#f0f9ff");
+    const border = item.type === "bad" ? "#fca5a5" : (item.type === "warning" ? "#fde68a" : "#bae6fd");
+    html += `
+      <div style="background:${bg}; border:1px solid ${border}; border-radius:6px; padding:10px 14px;">
+        <div style="font-weight:bold; font-size:0.92rem; margin-bottom:4px;">${item.title}</div>
+        <div style="font-size:0.83rem; color:#334155; line-height:1.4;">${item.desc}</div>
+      </div>
+    `;
+  });
+
+  passes.forEach(item => {
+    html += `
+      <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px; padding:8px 14px;">
+        <div style="font-weight:bold; color:#065f46; font-size:0.9rem;">${item.title}</div>
+        <div style="font-size:0.8rem; color:#047857; margin-top:2px;">${item.desc}</div>
+      </div>
+    `;
+  });
+
+  resultsWrap.innerHTML = html;
+}
+
+
 renderSeasonSelector();
 renderTable();
 initFilters();
@@ -2221,5 +2680,30 @@ renderBalanceMonitor();
   </div>
 </div>
 
+<!-- MODAL: PRE-FLIGHT CHECK (AUDIT RAPPORT) -->
+<div class="modal-overlay" id="preFlightModal">
+  <div class="modal-box" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--border); padding-bottom: 10px;">
+      <div>
+        <h3 style="color: var(--primary); font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+          🔍 Pre-Flight Check (Audit Rapport)
+        </h3>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Controleert automatisch alle 7 kritische kwaliteitspunten vóórdat het competitieprogramma naar de clubs gaat.
+        </p>
+      </div>
+      <div id="preflight-badge-overall" style="font-size: 1.1rem; font-weight: bold;"></div>
+    </div>
+
+    <div id="preflight-results-wrap" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px;">
+      <button class="btn btn-success btn-sm" onclick="runAutoScheduler(); setTimeout(runPreFlightCheck, 200);">
+        ⚡ Automatisch Herstellen & Optimaliseren
+      </button>
+      <button class="btn btn-outline" onclick="closePreFlightModal()">Sluiten</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
