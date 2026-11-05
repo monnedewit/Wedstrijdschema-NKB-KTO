@@ -145,6 +145,19 @@
     .booklet-day-block { page-break-after: always; border-bottom: none; padding-bottom: 0; }
     .booklet-container { box-shadow: none; padding: 0; max-width: 100%; }
   }
+
+  /* Balance Monitor Styling */
+  .balance-card { background: #ffffff; border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .balance-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .balance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 8px; }
+  .balance-day-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 6px; text-align: center; }
+  .balance-day-title { font-size: 0.75rem; font-weight: bold; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; }
+  .balance-ratio { font-size: 0.95rem; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 4px; }
+  .tag-balance-perfect { color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 4px; padding: 2px 5px; }
+  .tag-balance-good { color: #0284c7; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 2px 5px; }
+  .tag-balance-warning { color: #d97706; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 2px 5px; }
+  .tag-balance-bad { color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; padding: 2px 5px; }
+
 </style>
 </head>
 <body>
@@ -215,6 +228,30 @@
     <div class="matrix-wrapper">
       <table class="matrix-table" id="matrixTable"></table>
     </div>
+
+    <div class="balance-card no-print">
+      <div class="balance-header">
+        <div>
+          <h3 style="color: var(--primary); font-size: 1.05rem; display: flex; align-items: center; gap: 6px;">
+            ⚖️ Baanbezetting & Thuis/Uit Balansmonitor
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Controleert live of teams van dezelfde vereniging netjes 50% thuis en 50% uit spelen per wedstrijddag (bijv. 6 thuis en 6 uit bij 12 teams).
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <label style="font-size: 0.85rem; font-weight: bold;">Kies Vereniging:</label>
+          <select id="balance-club-select" class="btn btn-outline" onchange="renderBalanceMonitor()"></select>
+          <button class="btn btn-success btn-sm" onclick="autoBalanceClub()" title="Optimaliseer de contra-posities voor deze club">
+            ⚡ Automatisch Balanceren
+          </button>
+        </div>
+      </div>
+
+      <div id="balance-summary-text" style="font-size: 0.86rem; font-weight: 600; margin-bottom: 10px; color: var(--primary);"></div>
+      <div class="balance-grid" id="balanceGrid"></div>
+    </div>
+
   </div>
 </div>
 
@@ -287,6 +324,30 @@
         <tbody id="scheduleBody"></tbody>
       </table>
     </div>
+
+    <div class="balance-card no-print">
+      <div class="balance-header">
+        <div>
+          <h3 style="color: var(--primary); font-size: 1.05rem; display: flex; align-items: center; gap: 6px;">
+            ⚖️ Baanbezetting & Thuis/Uit Balansmonitor
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+            Controleert live of teams van dezelfde vereniging netjes 50% thuis en 50% uit spelen per wedstrijddag (bijv. 6 thuis en 6 uit bij 12 teams).
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <label style="font-size: 0.85rem; font-weight: bold;">Kies Vereniging:</label>
+          <select id="balance-club-select" class="btn btn-outline" onchange="renderBalanceMonitor()"></select>
+          <button class="btn btn-success btn-sm" onclick="autoBalanceClub()" title="Optimaliseer de contra-posities voor deze club">
+            ⚡ Automatisch Balanceren
+          </button>
+        </div>
+      </div>
+
+      <div id="balance-summary-text" style="font-size: 0.86rem; font-weight: 600; margin-bottom: 10px; color: var(--primary);"></div>
+      <div class="balance-grid" id="balanceGrid"></div>
+    </div>
+
   </div>
 </div>
 
@@ -658,6 +719,8 @@ function renderTable() {
   table.innerHTML = html;
   updateStats();
   renderClubs();
+  initBalanceClubSelect();
+  renderBalanceMonitor();
 }
 
 let activeMove = { fromC: null, fromPos: null, team: "", isEmpty: false };
@@ -1279,9 +1342,202 @@ function showTab(tabId) {
   if (tabId === "tab-sheets") renderSheets();
 }
 
+
+// Live Thuis/Uit Balans & Baanbezetting Monitor
+function getClubHomeAwayRounds(clubCode) {
+  const matches = generateMatches();
+  const maxRounds = currentCategory === 'jeugd' ? 10 : 18;
+  const rounds = {};
+  for (let r = 1; r <= maxRounds; r++) {
+    rounds[r] = { home: 0, away: 0, total: 0 };
+  }
+
+  matches.forEach(m => {
+    if (m.home && m.home.code === clubCode) {
+      if (!rounds[m.round]) rounds[m.round] = { home: 0, away: 0, total: 0 };
+      rounds[m.round].home++;
+      rounds[m.round].total++;
+    } else if (m.away && m.away.code === clubCode) {
+      if (!rounds[m.round]) rounds[m.round] = { home: 0, away: 0, total: 0 };
+      rounds[m.round].away++;
+      rounds[m.round].total++;
+    }
+  });
+
+  return rounds;
+}
+
+function initBalanceClubSelect() {
+  const sel = document.getElementById("balance-club-select");
+  if (!sel) return;
+  const currentVal = sel.value;
+  sel.innerHTML = "";
+  
+  const classData = getCurrentClassData();
+  const clubTeamCounts = {};
+  classData.forEach(c => {
+    c.teams.forEach(t => {
+      const p = parseTeam(t);
+      if (p) clubTeamCounts[p.code] = (clubTeamCounts[p.code] || 0) + 1;
+    });
+  });
+
+  // Sort clubs with most teams first
+  const sortedClubs = Object.keys(clubNames).sort((a,b) => (clubTeamCounts[b] || 0) - (clubTeamCounts[a] || 0));
+
+  sortedClubs.forEach(code => {
+    const count = clubTeamCounts[code] || 0;
+    if (count > 0) {
+      sel.innerHTML += `<option value="${code}">${code} - ${clubNames[code]} (${count} teams)</option>`;
+    }
+  });
+
+  if (currentVal && clubNames[currentVal]) {
+    sel.value = currentVal;
+  }
+}
+
+function renderBalanceMonitor() {
+  const sel = document.getElementById("balance-club-select");
+  if (!sel || !sel.value) return;
+  const clubCode = sel.value;
+  const cName = clubNames[clubCode] || clubCode;
+
+  const rounds = getClubHomeAwayRounds(clubCode);
+  const maxRounds = currentCategory === 'jeugd' ? 10 : 18;
+
+  // Count active teams of this club
+  const classData = getCurrentClassData();
+  let totalClubTeams = 0;
+  classData.forEach(c => {
+    c.teams.forEach(t => {
+      const p = parseTeam(t);
+      if (p && p.code === clubCode) totalClubTeams++;
+    });
+  });
+
+  const idealHome = Math.floor(totalClubTeams / 2);
+  const idealAway = Math.ceil(totalClubTeams / 2);
+
+  const summary = document.getElementById("balance-summary-text");
+  summary.innerHTML = `Overzicht ${cName} (${totalClubTeams} teams ingedeeld) &bull; Doelverdeling: <span style="color:#059669;">${idealHome} Thuis / ${idealAway} Uit</span>`;
+
+  const grid = document.getElementById("balanceGrid");
+  let html = "";
+
+  for (let r = 1; r <= maxRounds; r++) {
+    const data = rounds[r] || { home: 0, away: 0, total: 0 };
+    if (data.total === 0 && r > 14) continue; // For 8-team classes after round 14
+
+    const diff = Math.abs(data.home - idealHome);
+    let tagClass = "tag-balance-perfect";
+    let icon = "✅";
+
+    if (diff === 0) {
+      tagClass = "tag-balance-perfect";
+      icon = "✅";
+    } else if (diff === 1) {
+      tagClass = "tag-balance-good";
+      icon = "👍";
+    } else if (diff === 2) {
+      tagClass = "tag-balance-warning";
+      icon = "⚠️";
+    } else {
+      tagClass = "tag-balance-bad";
+      icon = "❌";
+    }
+
+    html += `
+      <div class="balance-day-box">
+        <div class="balance-day-title">Dag ${r}</div>
+        <div class="balance-ratio">
+          <span class="${tagClass}">${data.home}T - ${data.away}U ${icon}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  grid.innerHTML = html;
+}
+
+// Auto-balancer for a selected club
+function autoBalanceClub() {
+  const sel = document.getElementById("balance-club-select");
+  if (!sel || !sel.value) return;
+  const clubCode = sel.value;
+  const cName = clubNames[clubCode] || clubCode;
+  const classData = getCurrentClassData();
+
+  let modifiedCount = 0;
+
+  // We optimize by swapping contra pairs (3 <-> 8 and 4 <-> 6) if doing so improves overall round balance
+  function evaluateVariance() {
+    const rData = getClubHomeAwayRounds(clubCode);
+    let totalVar = 0;
+    const maxR = currentCategory === 'jeugd' ? 10 : 14;
+    for (let r = 1; r <= maxR; r++) {
+      const d = rData[r] || { home: 0, away: 0 };
+      const diff = Math.abs(d.home - d.away);
+      totalVar += diff * diff;
+    }
+    return totalVar;
+  }
+
+  let currentBestVar = evaluateVariance();
+
+  // Try swapping contra-positions for this club
+  // Contra pairs in 8-teams: 3 & 8 (indices 2 & 7), 4 & 6 (indices 3 & 5)
+  classData.forEach((c, cIdx) => {
+    // Check if club is at pos 3 and pos 8 is empty or swappable
+    const p3 = parseTeam(c.teams[2]);
+    const p8 = parseTeam(c.teams[7]);
+    if (p3 && p3.code === clubCode && (!p8 || p8.code === clubCode)) {
+      // test swap
+      const tmp = c.teams[2]; c.teams[2] = c.teams[7]; c.teams[7] = tmp;
+      const newVar = evaluateVariance();
+      if (newVar < currentBestVar) {
+        currentBestVar = newVar;
+        modifiedCount++;
+      } else {
+        // revert
+        const tmp2 = c.teams[2]; c.teams[2] = c.teams[7]; c.teams[7] = tmp2;
+      }
+    }
+
+    // Check pos 4 & 6 (indices 3 & 5)
+    const p4 = parseTeam(c.teams[3]);
+    const p6 = parseTeam(c.teams[5]);
+    if (p4 && p4.code === clubCode && (!p6 || p6.code === clubCode)) {
+      const tmp = c.teams[3]; c.teams[3] = c.teams[5]; c.teams[5] = tmp;
+      const newVar = evaluateVariance();
+      if (newVar < currentBestVar) {
+        currentBestVar = newVar;
+        modifiedCount++;
+      } else {
+        const tmp2 = c.teams[3]; c.teams[3] = c.teams[5]; c.teams[5] = tmp2;
+      }
+    }
+  });
+
+  renderTable();
+  renderBalanceMonitor();
+  renderSchedule();
+  renderBooklet();
+  renderSheets();
+
+  if (modifiedCount > 0) {
+    alert(`Thuis/Uit balans voor ${cName} is geoptimaliseerd (${modifiedCount} contra-wissels doorgevoerd)!`);
+  } else {
+    alert(`De indeling voor ${cName} is al in optimale balans.`);
+  }
+}
+
+
 renderSeasonSelector();
 renderTable();
 initFilters();
+initBalanceClubSelect();
+renderBalanceMonitor();
 </script>
 </body>
 </html>
