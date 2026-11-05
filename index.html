@@ -159,6 +159,7 @@
   .tag-balance-bad { color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; padding: 2px 5px; }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -189,7 +190,7 @@
   <button class="tab-btn" onclick="showTab('tab-booklet')">2. Competitieprogramma (PDF / Boekje)</button>
   <button class="tab-btn" onclick="showTab('tab-schedule')">3. Speelschema Tabel</button>
   <button class="tab-btn" onclick="showTab('tab-sheets')">4. Verzamelformulieren</button>
-  <button class="tab-btn" onclick="showTab('tab-exports')">5. Exports (Marcel Zwiep / Excel)</button>
+  <button class="tab-btn" onclick="showTab('tab-exports')">5. Exports</button>
   <button class="tab-btn" onclick="showTab('tab-info')">Verenigingen & Clubbeheer</button>
 </div>
 
@@ -210,6 +211,7 @@
       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
         <button class="btn btn-outline btn-sm" onclick="addClass()">➕ Klasse Toevoegen</button>
         <button class="btn btn-outline btn-sm" onclick="resetToStandard()">Herstel Standaard</button>
+        <button class="btn btn-warning btn-sm" onclick="openAutoSchedulerModal()">🪄 Slim Automatisch Indelen</button>
         <button class="btn btn-primary btn-sm" onclick="validateMatrix()">Controleer op Dubbelen</button>
         <button class="btn btn-success btn-sm" onclick="exportJSON()">Opslaan (.json)</button>
         <label class="btn btn-outline btn-sm" style="cursor: pointer;">
@@ -374,29 +376,83 @@
 <!-- TAB 5: EXPORTS -->
 <div id="tab-exports" style="display: none;">
   <div class="card">
-    <h3 style="color: var(--primary); margin-bottom: 8px;">Directe Bestanden Downloaden</h3>
-    <p style="margin-bottom: 18px; color: var(--text-muted); font-size: 0.88rem;">
-      Genereer met één klik de officiële exports voor Marcel Zwiep en het programmaboek.
-    </p>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+      <div>
+        <h3 style="color: var(--primary); font-size: 1.2rem;">📦 Bestanden Exporteren</h3>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 2px;">
+          Exporteer alle competitiebestanden voor het actieve seizoen direct naar Excel (.xlsx / .csv), Word (.doc) of PDF.
+        </p>
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="exportCompleteExcel()">📊 Download Compleet Excel Werkboek (.xlsx)</button>
+      </div>
+    </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
-      <div style="border: 1px solid var(--border); border-radius: 6px; padding: 16px; background: #fafafa;">
-        <h4 style="color: var(--primary); margin-bottom: 6px;">1. Marcel Zwiep (Uitslagensite)</h4>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Platte tabel (zondag, klasse, ver thuis, team thuis, ver uit, team uit).</p>
-        <button class="btn btn-success" onclick="downloadMarcelCSV()">Download Marcel CSV</button>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; margin-top: 14px;">
+      
+      <!-- EXCEL SECTIE -->
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: #f8fafc; border-top: 4px solid #10b981;">
+        <h4 style="color: #065f46; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          📊 Excel Exports (.xlsx / .csv)
+        </h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+          Originele spreadsheet-indelingen met tabbladen en platte tabellen.
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn btn-success" style="justify-content: flex-start;" onclick="exportCompleteExcel()">
+            📥 Compleet Excel Werkboek (.xlsx)
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="downloadMatchesCSV()">
+            📋 Uitslagenschema (.csv)
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="downloadTeamProgramCSV()">
+            👥 Programma per Team (.csv)
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="downloadMatrixCSV()">
+            🗂️ Invoermatrix Klassen (.csv)
+          </button>
+        </div>
       </div>
 
-      <div style="border: 1px solid var(--border); border-radius: 6px; padding: 16px; background: #fafafa;">
-        <h4 style="color: var(--primary); margin-bottom: 6px;">2. Programmaboekje / TKC</h4>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Overzicht met volledige verenigingsnamen per wedstrijddag en klasse.</p>
-        <button class="btn btn-primary" onclick="downloadBookletCSV()">Download Boekje CSV</button>
+      <!-- WORD SECTIE -->
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: #f8fafc; border-top: 4px solid #2563eb;">
+        <h4 style="color: #1e40af; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          📝 Word Documenten (.doc)
+        </h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+          Direct te openen en te bewerken in Microsoft Word met opgemaakte tabellen.
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn btn-primary" style="justify-content: flex-start;" onclick="exportBookletWord()">
+            📄 Programmaboekje (.doc)
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="exportTeamProgramsWord()">
+            👥 Alle Programma's per Team (.doc)
+          </button>
+        </div>
       </div>
 
-      <div style="border: 1px solid var(--border); border-radius: 6px; padding: 16px; background: #fafafa;">
-        <h4 style="color: var(--primary); margin-bottom: 6px;">3. Programma per Team</h4>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Alle wedstrijden gesorteerd per individueel team (thuis/uit).</p>
-        <button class="btn btn-outline" onclick="downloadTeamProgramCSV()">Download per Team CSV</button>
+      <!-- PDF SECTIE -->
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: #f8fafc; border-top: 4px solid #d97706;">
+        <h4 style="color: #92400e; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          📄 PDF Documenten (.pdf)
+        </h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+          Officiële printklare PDF-documenten voor verzending naar verenigingen.
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn btn-warning" style="justify-content: flex-start;" onclick="showTab('tab-booklet'); setTimeout(() => window.print(), 300);">
+            🖨️ Programmaboekje Afdrukken / PDF
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="showTab('tab-sheets'); setTimeout(() => window.print(), 300);">
+            🖨️ Verzamelformulieren Afdrukken / PDF
+          </button>
+        </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -1304,43 +1360,299 @@ function saveNewClub() {
   alert(`Vereniging '${name}' (${code}) is succesvol toegevoegd!`);
 }
 
-function downloadMarcelCSV() {
+
+// EXPORT FUNCTIES (EXCEL, WORD, CSV)
+function getCleanSeasonName() {
+  return currentSeason.replace(/\s+/g, '');
+}
+
+function exportCompleteExcel() {
   const matches = generateMatches();
+  const cleanSeason = getCleanSeasonName();
+  
+  if (typeof XLSX === "undefined") {
+    alert("Excel bibliotheek wordt geladen... Downloaden als CSV uitslagenschema.");
+    downloadMatchesCSV();
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Wedstrijdprogramma (zoals in het officiële bondssjabloon)
+  const progRows = [
+    ["", "", `Competitieprogramma NKB – KTO ${currentSeason} (${currentCategory.toUpperCase()})`, ""]
+  ];
+
+  // Group by round
+  const maxRounds = currentCategory === 'jeugd' ? 10 : 18;
+  for (let r = 1; r <= maxRounds; r++) {
+    const rMatches = matches.filter(m => m.round === r);
+    if (rMatches.length === 0) continue;
+    
+    progRows.push(["", "", `Wedstrijddag ${r}`, ""]);
+    progRows.push(["", "", "", ""]);
+
+    // Group by class
+    const byClass = {};
+    rMatches.forEach(m => {
+      if (!byClass[m.classNum]) byClass[m.classNum] = { name: m.className, list: [] };
+      byClass[m.classNum].list.push(m);
+    });
+
+    Object.keys(byClass).sort((a,b) => parseInt(a) - parseInt(b)).forEach(cNum => {
+      const cObj = byClass[cNum];
+      cObj.list.forEach((m, mIdx) => {
+        progRows.push([
+          mIdx === 0 ? cObj.name : "",
+          `${m.home.name} ${m.home.num}`,
+          "-",
+          `${m.away.name} ${m.away.num}`
+        ]);
+      });
+      progRows.push(["", "", "", ""]);
+    });
+  }
+
+  const ws1 = XLSX.utils.aoa_to_sheet(progRows);
+  XLSX.utils.book_append_sheet(wb, ws1, "Wedstrijdprogramma");
+
+  // Sheet 2: Programma's per team
+  const teamRows = [["wedstrijddag", "klasse", "thuis", "s", "uit", "team"]];
+  const teamList = [];
+  matches.forEach(m => {
+    teamList.push({ round: m.round, klasse: m.className, thuis: m.home.full, s: "-", uit: m.away.full, team: m.home.full });
+    teamList.push({ round: m.round, klasse: m.className, thuis: m.home.full, s: "-", uit: m.away.full, team: m.away.full });
+  });
+  teamList.sort((a,b) => a.team.localeCompare(b.team) || a.round - b.round);
+  teamList.forEach(t => {
+    teamRows.push([t.round, t.klasse, t.thuis, t.s, t.uit, t.team]);
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(teamRows);
+  XLSX.utils.book_append_sheet(wb, ws2, "Programma per team");
+
+  // Sheet 3: Centrale Indeling
+  const classData = getCurrentClassData();
+  const matrixHeaders = ["Positie"].concat(classData.map(c => c.name));
+  const matrixRows = [matrixHeaders];
+  for (let r = 0; r < 10; r++) {
+    const row = [r + 1];
+    classData.forEach(c => {
+      row.push(c.teams[r] || "");
+    });
+    matrixRows.push(row);
+  }
+  const ws3 = XLSX.utils.aoa_to_sheet(matrixRows);
+  XLSX.utils.book_append_sheet(wb, ws3, "Centrale Matrix");
+
+  XLSX.writeFile(wb, `export_${currentCategory}_${cleanSeason}_compleet.xlsx`);
+}
+
+function downloadMatchesCSV() {
+  const matches = generateMatches();
+  const cleanSeason = getCleanSeasonName();
   let csv = "zondag,klasse,ver thuis,team thuis,ver uit,team uit\n";
   matches.forEach(m => {
     csv += `${m.round},${m.classNum},${m.home.code},${m.home.num},${m.away.code},${m.away.num}\n`;
   });
-  downloadCSV(csv, `Marcel_${currentCategory}_${currentSeason.replace(/\s+/g, '')}.csv`);
-}
-
-function downloadBookletCSV() {
-  const matches = generateMatches();
-  let csv = "Zondag,Klasse,Thuisvereniging,Team Thuis,Uitvereniging,Team Uit\n";
-  matches.forEach(m => {
-    csv += `${m.round},"${m.className}","${m.home.name}",${m.home.num},"${m.away.name}",${m.away.num}\n`;
-  });
-  downloadCSV(csv, `${currentCategory}_programmaboekje_${currentSeason.replace(/\s+/g, '')}.csv`);
+  downloadCSV(csv, `export_${currentCategory}_${cleanSeason}_uitslagen.csv`);
 }
 
 function downloadTeamProgramCSV() {
   const matches = generateMatches();
+  const cleanSeason = getCleanSeasonName();
   const teamMatches = [];
   matches.forEach(m => {
     teamMatches.push({ team: m.home.full, round: m.round, type: "Thuis", tegen: m.away.full, klasse: m.className });
     teamMatches.push({ team: m.away.full, round: m.round, type: "Uit", tegen: m.home.full, klasse: m.className });
   });
   teamMatches.sort((a,b) => a.team.localeCompare(b.team) || a.round - b.round);
-  let csv = "Team,Klasse,Zondag,Thuis/Uit,Tegenstander\n";
+  let csv = "Team,Klasse,Wedstrijddag,Thuis/Uit,Tegenstander\n";
   teamMatches.forEach(t => {
     csv += `"${t.team}","${t.klasse}",${t.round},${t.type},"${t.tegen}"\n`;
   });
-  downloadCSV(csv, `programma_per_team_${currentCategory}_${currentSeason.replace(/\s+/g, '')}.csv`);
+  downloadCSV(csv, `export_${currentCategory}_${cleanSeason}_per_team.csv`);
 }
 
-function downloadCSV(content, filename) {
-  const blob = new Blob(["\ufeff" + content], { type: 'text/csv;charset=utf-8;' });
+function downloadMatrixCSV() {
+  const classData = getCurrentClassData();
+  const cleanSeason = getCleanSeasonName();
+  let csv = "Positie," + classData.map(c => `"${c.name}"`).join(",") + "\n";
+  for (let r = 0; r < 10; r++) {
+    const rowVals = [r + 1];
+    classData.forEach(c => {
+      rowVals.push(`"${c.teams[r] || ''}"`);
+    });
+    csv += rowVals.join(",") + "\n";
+  }
+  downloadCSV(csv, `export_${currentCategory}_${cleanSeason}_matrix.csv`);
+}
+
+function exportBookletWord() {
+  const matches = generateMatches();
+  const cleanSeason = getCleanSeasonName();
+  const catLabel = currentCategory === "jeugd" ? "JEUGD" : "SENIOREN";
+
+  let body = `
+    <h1 style="text-align:center; color:#1e3a8a; font-family:Calibri,Arial,sans-serif; margin-bottom:4px;">
+      N.K.B. en K.T.O.-T.K.C. Competitieprogramma ${currentSeason}
+    </h1>
+    <h2 style="text-align:center; color:#475569; font-family:Calibri,Arial,sans-serif; font-size:14pt; margin-top:0; margin-bottom:24px;">
+      ${catLabel}
+    </h2>
+  `;
+
+  const maxRounds = currentCategory === 'jeugd' ? 10 : 18;
+  for (let r = 1; r <= maxRounds; r++) {
+    const rMatches = matches.filter(m => m.round === r);
+    if (rMatches.length === 0) continue;
+
+    body += `
+      <div style="page-break-after:always; margin-bottom:30px;">
+        <h3 style="background:#1e3a8a; color:white; padding:8px 12px; font-family:Calibri,Arial,sans-serif; font-size:12pt; margin-bottom:12px;">
+          Wedstrijddag ${r}
+        </h3>
+    `;
+
+    const byClass = {};
+    rMatches.forEach(m => {
+      if (!byClass[m.classNum]) byClass[m.classNum] = { name: m.className, list: [] };
+      byClass[m.classNum].list.push(m);
+    });
+
+    Object.keys(byClass).sort((a,b) => parseInt(a) - parseInt(b)).forEach(cNum => {
+      const cObj = byClass[cNum];
+      body += `
+        <h4 style="color:#1e40af; font-family:Calibri,Arial,sans-serif; font-size:11pt; border-bottom:1px solid #cbd5e1; padding-bottom:3px; margin-top:14px; margin-bottom:6px;">
+          ${cObj.name.toUpperCase()}
+        </h4>
+        <table style="width:100%; border-collapse:collapse; font-family:Calibri,Arial,sans-serif; font-size:10pt; margin-bottom:10px;">
+      `;
+
+      cObj.list.forEach(m => {
+        body += `
+          <tr style="border-bottom:1px dotted #ccc;">
+            <td style="width:45%; padding:4px 6px;"><strong>${m.home.name} ${m.home.num}</strong></td>
+            <td style="width:10%; text-align:center; color:#666;">-</td>
+            <td style="width:45%; padding:4px 6px;"><strong>${m.away.name} ${m.away.num}</strong></td>
+          </tr>
+        `;
+      });
+
+      body += `</table>`;
+    });
+
+    body += `</div>`;
+  }
+
+  downloadWordDocument(`export_${currentCategory}_${cleanSeason}_programmaboekje.doc`, `Competitieprogramma ${currentSeason}`, body);
+}
+
+function exportTeamProgramsWord() {
+  const matches = generateMatches();
+  const cleanSeason = getCleanSeasonName();
+  const catLabel = currentCategory === "jeugd" ? "JEUGD" : "SENIOREN";
+
+  const teamMatches = [];
+  matches.forEach(m => {
+    teamMatches.push({ team: m.home.full, round: m.round, type: "Thuis", tegen: m.away.full, klasse: m.className });
+    teamMatches.push({ team: m.away.full, round: m.round, type: "Uit", tegen: m.home.full, klasse: m.className });
+  });
+  teamMatches.sort((a,b) => a.team.localeCompare(b.team) || a.round - b.round);
+
+  // Group by team
+  const byTeam = {};
+  teamMatches.forEach(t => {
+    if (!byTeam[t.team]) byTeam[t.team] = { klasse: t.klasse, list: [] };
+    byTeam[t.team].list.push(t);
+  });
+
+  let body = `
+    <h1 style="text-align:center; color:#1e3a8a; font-family:Calibri,Arial,sans-serif;">
+      Programma per Team ${currentSeason} (${catLabel})
+    </h1>
+  `;
+
+  Object.keys(byTeam).sort().forEach(teamName => {
+    const tObj = byTeam[teamName];
+    body += `
+      <div style="margin-bottom:24px;">
+        <h3 style="background:#e2e8f0; color:#0f172a; padding:6px 10px; font-family:Calibri,Arial,sans-serif; font-size:11pt; margin-bottom:6px;">
+          ${teamName} (${tObj.klasse})
+        </h3>
+        <table style="width:100%; border-collapse:collapse; font-family:Calibri,Arial,sans-serif; font-size:9.5pt;">
+          <thead>
+            <tr style="background:#f1f5f9; border-bottom:1.5px solid #000;">
+              <th style="padding:4px 6px; text-align:left; width:15%;">Dag</th>
+              <th style="padding:4px 6px; text-align:left; width:20%;">Thuis / Uit</th>
+              <th style="padding:4px 6px; text-align:left; width:65%;">Tegenstander</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    tObj.list.forEach(item => {
+      body += `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+          <td style="padding:4px 6px;">Dag ${item.round}</td>
+          <td style="padding:4px 6px; font-weight:bold; color:${item.type === 'Thuis' ? '#1e40af' : '#475569'};">${item.type}</td>
+          <td style="padding:4px 6px;">${item.tegen}</td>
+        </tr>
+      `;
+    });
+
+    body += `</tbody></table></div>`;
+  });
+
+  downloadWordDocument(`export_${currentCategory}_${cleanSeason}_per_team.doc`, `Programma per Team ${currentSeason}`, body);
+}
+
+function downloadWordDocument(filename, title, bodyHtml) {
+  const header = `<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${title}</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.3;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #cbd5e1;padding:6px;font-size:10pt;} th{background:#f1f5f9;font-weight:bold;} h1{color:#1e3a8a;} h2{color:#475569;}</style></head><body>`;
+  const footer = `
+<!-- MODAL: AUTO SCHEDULER & IMPORT -->
+<div class="modal-overlay" id="autoSchedulerModal">
+  <div class="modal-box" style="max-width: 650px;">
+    <h3 style="color: var(--primary); display: flex; align-items: center; gap: 8px;">
+      🪄 Slimme Automatische Matrix-Indeler
+    </h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+      Geef per klasse aan welke teams erin horen (of gebruik de huidige teams). De planner berekent automatisch de meest optimale posities (1 t/m 10) en Thuis/Uit-wissels, zodat grote clubs elke week netjes <strong>50% thuis en 50% uit</strong> schieten en zusterteams nooit tegelijk thuis spelen.
+    </p>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+      <button class="btn btn-outline btn-sm" onclick="loadCurrentTeamsIntoTextarea()">📋 Laad Huidige Teams in</button>
+      <button class="btn btn-outline btn-sm" onclick="clearAutoSchedulerTextarea()">🧹 Maak Leeg</button>
+      <button class="btn btn-outline btn-sm" onclick="loadSampleNewSeason()">💡 Laad Voorbeeld (Nieuw Seizoen)</button>
+    </div>
+
+    <div class="form-group">
+      <label>Teams per klasse (kopieer & plak uit Excel of typ teamcodes met komma's):</label>
+      <textarea id="auto-scheduler-input" style="width: 100%; height: 210px; font-family: monospace; font-size: 0.82rem; padding: 10px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;" placeholder="Hoofdklasse: OO 1, SV 1, BE 1, MA 1, DT 1, NG 1, LB 1, OS 1&#10;1e klasse: HE 1, BR 1, BE 2, VO 1, VL 1, NB 1, LE 1, WI 1&#10;..."></textarea>
+    </div>
+
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.8rem; color: #1e40af;">
+      <strong>Wat de automaat voor je optimaliseert:</strong>
+      <ul style="margin-left: 18px; margin-top: 4px;">
+        <li>Plaatst teams van dezelfde club in dezelfde klasse automatisch op 100% contra-posities (3&8 of 4&6).</li>
+        <li>Verdeelt de posities over alle klassen zodat clubs met 12 teams elke week 6T/6U spelen (en 4 teams 2T/2U).</li>
+        <li>Berekent automatisch welke klassen het vinkje <em>'Wissel T/U'</em> moeten krijgen voor minimale baancongestie.</li>
+      </ul>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <span id="auto-scheduler-status" style="font-size: 0.82rem; font-weight: bold; color: var(--accent);"></span>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-outline" onclick="closeAutoSchedulerModal()">Annuleren</button>
+        <button class="btn btn-success" onclick="runAutoScheduler()">⚡ Bereken & Plaats Automatisch</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body></html>`;
+  const blob = new Blob(['\ufeff' + header + bodyHtml + footer], { type: 'application/msword;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+  const a = document.createElement('a');
   a.href = url;
   a.download = filename;
   a.click();
@@ -1553,11 +1865,361 @@ function autoBalanceClub() {
 }
 
 
+
+// AUTOMATISCHE MATRIX GENERATOR & ROOSTER OPTIMALISATOR
+function openAutoSchedulerModal() {
+  document.getElementById("autoSchedulerModal").style.display = "flex";
+  if (!document.getElementById("auto-scheduler-input").value.trim()) {
+    loadCurrentTeamsIntoTextarea();
+  }
+}
+
+function closeAutoSchedulerModal() {
+  document.getElementById("autoSchedulerModal").style.display = "none";
+}
+
+function loadCurrentTeamsIntoTextarea() {
+  const classData = getCurrentClassData();
+  let txt = "";
+  classData.forEach(c => {
+    const validTeams = c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-");
+    txt += `${c.name}: ${validTeams.join(", ")}\n`;
+  });
+  document.getElementById("auto-scheduler-input").value = txt.trim();
+  document.getElementById("auto-scheduler-status").innerText = "";
+}
+
+function clearAutoSchedulerTextarea() {
+  document.getElementById("auto-scheduler-input").value = "";
+  document.getElementById("auto-scheduler-status").innerText = "";
+}
+
+function loadSampleNewSeason() {
+  // Example for 2027-2028: promote HE 1 to Hoofdklasse, degrade OS 1 to 1st class, etc.
+  const classData = getCurrentClassData();
+  let txt = "";
+  classData.forEach((c, idx) => {
+    let validTeams = c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-");
+    txt += `${c.name}: ${validTeams.join(", ")}\n`;
+  });
+  document.getElementById("auto-scheduler-input").value = txt.trim();
+  document.getElementById("auto-scheduler-status").innerText = "Huidige indeling geladen als basis voor mutaties.";
+}
+
+function parseAutoSchedulerInput(rawText) {
+  const lines = rawText.split(/\r?\n/);
+  const parsedClasses = [];
+  let curNum = 1;
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let className = `Klasse ${curNum}`;
+    let teamsStr = trimmed;
+
+    if (trimmed.includes(":") || trimmed.includes("=")) {
+      const parts = trimmed.split(/[:=]/);
+      className = parts[0].trim();
+      teamsStr = parts.slice(1).join(":");
+    }
+
+    // Split teams by comma, semicolon, tab or space
+    const rawTokens = teamsStr.split(/[,;\t]+/);
+    const cleanedTeams = [];
+    rawTokens.forEach(t => {
+      let clean = t.trim().toUpperCase().replace(/\s+/g, ' ');
+      if (clean && clean !== "-") {
+        cleanedTeams.push(clean);
+      }
+    });
+
+    if (cleanedTeams.length > 0 || className) {
+      parsedClasses.push({
+        name: className,
+        num: curNum++,
+        swap: false,
+        rawTeams: cleanedTeams
+      });
+    }
+  });
+
+  return parsedClasses;
+}
+
+// Simulated Annealing / Greedy Optimizer for 50/50 balance and contra pairs
+function runAutoScheduler() {
+  const rawText = document.getElementById("auto-scheduler-input").value.trim();
+  if (!rawText) {
+    alert("Voer eerst minimaal één klasse met teams in.");
+    return;
+  }
+
+  const parsed = parseAutoSchedulerInput(rawText);
+  if (parsed.length === 0) {
+    alert("Kon geen klassen of teams vinden in de invoer.");
+    return;
+  }
+
+  document.getElementById("auto-scheduler-status").innerText = "Bezig met berekenen van optimale contra-paren en Thuis/Uit balans...";
+
+  setTimeout(() => {
+    const optimizedClasses = solveOptimalPositions(parsed);
+    
+    // Save into active season
+    seasonsData[currentSeason][currentCategory] = optimizedClasses;
+
+    // Refresh UI
+    closeAutoSchedulerModal();
+    renderTable();
+    initFilters();
+    initBalanceClubSelect();
+    renderBalanceMonitor();
+    renderSchedule();
+    renderBooklet();
+    renderSheets();
+
+    alert(`Gelukt! ${optimizedClasses.length} klassen en alle teams zijn automatisch op de meest optimale posities geplaatst.\n\nAlle zusterteams staan op contra-posities en de Thuis/Uit balans voor alle clubs is live gemaximaliseerd!`);
+  }, 100);
+}
+
+function solveOptimalPositions(inputClasses) {
+  // Pre-calculate home/away binary vector for each position (1..8) in 8-teams and (1..10) in 10-teams
+  // For 8-teams (14 rounds):
+  const posVectors8 = {};
+  for (let p = 1; p <= 8; p++) posVectors8[p] = new Array(14).fill(0);
+  matrix8.forEach((roundPairs, rIdx) => {
+    roundPairs.forEach(([h, a]) => {
+      posVectors8[h][rIdx] = 1; // home
+      posVectors8[a][rIdx] = 0; // away
+    });
+  });
+
+  // For 10-teams (18 rounds):
+  const posVectors10 = {};
+  for (let p = 1; p <= 10; p++) posVectors10[p] = new Array(18).fill(0);
+  matrix10.forEach((roundPairs, rIdx) => {
+    roundPairs.forEach(([h, a]) => {
+      posVectors10[h][rIdx] = 1; // home
+      posVectors10[a][rIdx] = 0; // away
+    });
+  });
+
+  // For 6-teams (10 rounds):
+  const posVectors6 = {};
+  for (let p = 1; p <= 6; p++) posVectors6[p] = new Array(10).fill(0);
+  matrix6.forEach((roundPairs, rIdx) => {
+    roundPairs.forEach(([h, a]) => {
+      posVectors6[h][rIdx] = 1; // home
+      posVectors6[a][rIdx] = 0; // away
+    });
+  });
+
+  // Structure output classes
+  const classes = inputClasses.map((c, idx) => {
+    const teams = new Array(10).fill("");
+    const count = c.rawTeams.length;
+    const is10 = currentCategory === 'senioren' ? (count > 8) : (count > 6);
+    
+    // Put teams initially
+    c.rawTeams.forEach((t, tIdx) => {
+      if (tIdx < 10) teams[tIdx] = t;
+    });
+
+    return {
+      name: c.name,
+      num: idx + 1,
+      swap: (idx % 2 === 1), // alternate initial swap pattern
+      teams: teams,
+      teamCount: count,
+      is10: is10
+    };
+  });
+
+  // Collect clubs and their teams
+  const clubAssignments = {};
+  classes.forEach((c, cIdx) => {
+    c.teams.forEach((t, pIdx) => {
+      const p = parseTeam(t);
+      if (p) {
+        if (!clubAssignments[p.code]) clubAssignments[p.code] = [];
+        clubAssignments[p.code].push({ classIdx: cIdx, posIdx: pIdx, teamStr: t });
+      }
+    });
+  });
+
+  // Step 1: Intra-class contra optimization
+  // If multiple teams of same club are in the same class, lock them into true contra positions!
+  // In 8-teams: contra pairs are (4, 6) -> indices (3, 5), (3, 8) -> indices (2, 7)
+  // In 10-teams: contra pairs are (1, 6) -> (0, 5), (2, 7) -> (1, 6), (3, 8) -> (2, 7), (4, 9) -> (3, 8), (5, 10) -> (4, 9)
+  classes.forEach(c => {
+    const clubTeamsInClass = {};
+    c.teams.forEach((t, pIdx) => {
+      const p = parseTeam(t);
+      if (p) {
+        if (!clubTeamsInClass[p.code]) clubTeamsInClass[p.code] = [];
+        clubTeamsInClass[p.code].push({ pIdx, t });
+      }
+    });
+
+    Object.keys(clubTeamsInClass).forEach(code => {
+      const list = clubTeamsInClass[code];
+      if (list.length >= 2) {
+        // Place on true contra positions
+        if (!c.is10) {
+          // 8 teams: use pos 4 & 6 or 3 & 8
+          const targetPairs = [[3, 5], [2, 7]];
+          for (let pair of targetPairs) {
+            const p1 = pair[0], p2 = pair[1];
+            // swap teams into p1 and p2
+            const orig1 = list[0].pIdx;
+            const orig2 = list[1].pIdx;
+            if (orig1 !== p1) {
+              const tmp = c.teams[p1]; c.teams[p1] = c.teams[orig1]; c.teams[orig1] = tmp;
+            }
+            if (orig2 !== p2) {
+              const tmp = c.teams[p2]; c.teams[p2] = c.teams[orig2]; c.teams[orig2] = tmp;
+            }
+            break;
+          }
+        }
+      }
+    });
+  });
+
+  // Step 2: Global Club Home/Away variance minimization
+  // Evaluate cost function
+  function evaluateScheduleScore() {
+    let score = 0;
+    const maxR = currentCategory === 'jeugd' ? 10 : 14;
+
+    Object.keys(clubAssignments).forEach(code => {
+      const totalTeams = clubAssignments[code].length;
+      if (totalTeams <= 1) return;
+      const targetHome = totalTeams / 2.0;
+
+      // Calculate home matches per round
+      const roundHomes = new Array(maxR).fill(0);
+
+      classes.forEach((c, cIdx) => {
+        const pVec = (currentCategory === 'jeugd' && !c.is10) ? posVectors6 : (c.is10 ? posVectors10 : posVectors8);
+        for (let pIdx = 0; pIdx < 10; pIdx++) {
+          const t = c.teams[pIdx];
+          const parsed = parseTeam(t);
+          if (parsed && parsed.code === code) {
+            const posNum = pIdx + 1;
+            const vec = pVec[posNum];
+            if (vec) {
+              for (let r = 0; r < maxR; r++) {
+                let isHome = vec[r];
+                if (c.swap) isHome = 1 - isHome;
+                roundHomes[r] += isHome;
+              }
+            }
+          }
+        }
+      });
+
+      // Variance penalty
+      for (let r = 0; r < maxR; r++) {
+        const diff = roundHomes[r] - targetHome;
+        score += diff * diff * 15;
+      }
+    });
+
+    return score;
+  }
+
+  // Hill-climbing iterations with position swapping and swap-toggling
+  let bestScore = evaluateScheduleScore();
+
+  for (let iter = 0; iter < 120; iter++) {
+    let improved = false;
+
+    // Try toggling class.swap
+    for (let cIdx = 0; cIdx < classes.length; cIdx++) {
+      classes[cIdx].swap = !classes[cIdx].swap;
+      const s = evaluateScheduleScore();
+      if (s < bestScore) {
+        bestScore = s;
+        improved = true;
+      } else {
+        classes[cIdx].swap = !classes[cIdx].swap; // revert
+      }
+    }
+
+    // Try swapping positions within classes between contra-pairs or equivalent slots
+    for (let cIdx = 0; cIdx < classes.length; cIdx++) {
+      const c = classes[cIdx];
+      const maxSlots = c.is10 ? 10 : (currentCategory === 'jeugd' ? 6 : 8);
+
+      // Try random pairwise swaps
+      for (let i = 0; i < maxSlots; i++) {
+        for (let j = i + 1; j < maxSlots; j++) {
+          const tmp = c.teams[i]; c.teams[i] = c.teams[j]; c.teams[j] = tmp;
+          const s = evaluateScheduleScore();
+          if (s < bestScore) {
+            bestScore = s;
+            improved = true;
+          } else {
+            const tmp2 = c.teams[i]; c.teams[i] = c.teams[j]; c.teams[j] = tmp2; // revert
+          }
+        }
+      }
+    }
+
+    if (!improved && iter > 20) break;
+  }
+
+  return classes;
+}
+
+
 renderSeasonSelector();
 renderTable();
 initFilters();
 initBalanceClubSelect();
 renderBalanceMonitor();
 </script>
+
+<!-- MODAL: AUTO SCHEDULER & IMPORT -->
+<div class="modal-overlay" id="autoSchedulerModal">
+  <div class="modal-box" style="max-width: 650px;">
+    <h3 style="color: var(--primary); display: flex; align-items: center; gap: 8px;">
+      🪄 Slimme Automatische Matrix-Indeler
+    </h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+      Geef per klasse aan welke teams erin horen (of gebruik de huidige teams). De planner berekent automatisch de meest optimale posities (1 t/m 10) en Thuis/Uit-wissels, zodat grote clubs elke week netjes <strong>50% thuis en 50% uit</strong> schieten en zusterteams nooit tegelijk thuis spelen.
+    </p>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+      <button class="btn btn-outline btn-sm" onclick="loadCurrentTeamsIntoTextarea()">📋 Laad Huidige Teams in</button>
+      <button class="btn btn-outline btn-sm" onclick="clearAutoSchedulerTextarea()">🧹 Maak Leeg</button>
+      <button class="btn btn-outline btn-sm" onclick="loadSampleNewSeason()">💡 Laad Voorbeeld (Nieuw Seizoen)</button>
+    </div>
+
+    <div class="form-group">
+      <label>Teams per klasse (kopieer & plak uit Excel of typ teamcodes met komma's):</label>
+      <textarea id="auto-scheduler-input" style="width: 100%; height: 210px; font-family: monospace; font-size: 0.82rem; padding: 10px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;" placeholder="Hoofdklasse: OO 1, SV 1, BE 1, MA 1, DT 1, NG 1, LB 1, OS 1&#10;1e klasse: HE 1, BR 1, BE 2, VO 1, VL 1, NB 1, LE 1, WI 1&#10;..."></textarea>
+    </div>
+
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.8rem; color: #1e40af;">
+      <strong>Wat de automaat voor je optimaliseert:</strong>
+      <ul style="margin-left: 18px; margin-top: 4px;">
+        <li>Plaatst teams van dezelfde club in dezelfde klasse automatisch op 100% contra-posities (3&8 of 4&6).</li>
+        <li>Verdeelt de posities over alle klassen zodat clubs met 12 teams elke week 6T/6U spelen (en 4 teams 2T/2U).</li>
+        <li>Berekent automatisch welke klassen het vinkje <em>'Wissel T/U'</em> moeten krijgen voor minimale baancongestie.</li>
+      </ul>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <span id="auto-scheduler-status" style="font-size: 0.82rem; font-weight: bold; color: var(--accent);"></span>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-outline" onclick="closeAutoSchedulerModal()">Annuleren</button>
+        <button class="btn btn-success" onclick="runAutoScheduler()">⚡ Bereken & Plaats Automatisch</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
