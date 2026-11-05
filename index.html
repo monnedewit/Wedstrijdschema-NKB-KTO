@@ -1718,7 +1718,7 @@ function downloadWordDocument(filename, title, bodyHtml) {
     <div id="preflight-results-wrap" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;"></div>
 
     <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px;">
-      <button class="btn btn-success btn-sm" onclick="runAutoScheduler(); setTimeout(runPreFlightCheck, 200);">
+      <button class="btn btn-success btn-sm" onclick="autoFixPreFlight()">
         ⚡ Automatisch Herstellen & Optimaliseren
       </button>
       <button class="btn btn-outline" onclick="closePreFlightModal()">Sluiten</button>
@@ -2026,7 +2026,11 @@ function parseAutoSchedulerInput(rawText) {
 
 // Simulated Annealing / Greedy Optimizer for 50/50 balance and contra pairs
 function runAutoScheduler() {
-  const rawText = document.getElementById("auto-scheduler-input").value.trim();
+  let rawText = document.getElementById("auto-scheduler-input").value.trim();
+  if (!rawText) {
+    loadCurrentTeamsIntoTextarea();
+    rawText = document.getElementById("auto-scheduler-input").value.trim();
+  }
   if (!rawText) {
     alert("Voer eerst minimaal één klasse met teams in.");
     return;
@@ -2405,6 +2409,37 @@ function saveCalendarData() {
 // -------------------------------------------------------------
 // PRE-FLIGHT CHECK (AUDIT RAPPORT)
 // -------------------------------------------------------------
+function autoFixPreFlight() {
+  const classData = getCurrentClassData();
+  
+  // 1. Convert current classData to format needed by solver
+  const inputClasses = classData.map((c, idx) => {
+    const validTeams = c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-");
+    return {
+      name: c.name,
+      num: idx + 1,
+      swap: c.swap,
+      rawTeams: validTeams
+    };
+  });
+
+  // 2. Solve optimal positions
+  const optimized = solveOptimalPositions(inputClasses);
+  seasonsData[currentSeason][currentCategory] = optimized;
+
+  // 3. Re-render UI
+  renderTable();
+  initFilters();
+  initBalanceClubSelect();
+  renderBalanceMonitor();
+  renderSchedule();
+  renderBooklet();
+  renderSheets();
+
+  // 4. Update the Pre-Flight check in-place
+  runPreFlightCheck();
+}
+
 function openPreFlightModal() {
   document.getElementById("preFlightModal").style.display = "flex";
   runPreFlightCheck();
@@ -2698,7 +2733,7 @@ renderBalanceMonitor();
     <div id="preflight-results-wrap" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;"></div>
 
     <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px;">
-      <button class="btn btn-success btn-sm" onclick="runAutoScheduler(); setTimeout(runPreFlightCheck, 200);">
+      <button class="btn btn-success btn-sm" onclick="autoFixPreFlight()">
         ⚡ Automatisch Herstellen & Optimaliseren
       </button>
       <button class="btn btn-outline" onclick="closePreFlightModal()">Sluiten</button>
