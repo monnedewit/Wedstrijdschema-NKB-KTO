@@ -1856,98 +1856,48 @@ function exportTeamProgramsWord() {
 }
 
 function downloadWordDocument(filename, title, bodyHtml) {
-  const header = `<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${title}</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.3;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #cbd5e1;padding:6px;font-size:10pt;} th{background:#f1f5f9;font-weight:bold;} h1{color:#1e3a8a;} h2{color:#475569;}</style></head><body>`;
-  const footer = `
-<!-- MODAL: AUTO SCHEDULER & IMPORT -->
-<div class="modal-overlay" id="autoSchedulerModal">
-  <div class="modal-box" style="max-width: 650px;">
-    <h3 style="color: var(--primary); display: flex; align-items: center; gap: 8px;">
-      🪄 Slimme Automatische Matrix-Indeler
-    </h3>
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
-      Geef per klasse aan welke teams erin horen (of gebruik de huidige teams). De planner berekent automatisch de meest optimale posities (1 t/m 10) en Thuis/Uit-wissels, zodat grote clubs elke week netjes <strong>50% thuis en 50% uit</strong> schieten en zusterteams nooit tegelijk thuis spelen.
-    </p>
-
-    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-      <button class="btn btn-outline btn-sm" onclick="loadCurrentTeamsIntoTextarea()">📋 Laad Huidige Teams in</button>
-      <button class="btn btn-outline btn-sm" onclick="clearAutoSchedulerTextarea()">🧹 Maak Leeg</button>
-      <button class="btn btn-outline btn-sm" onclick="loadSampleNewSeason()">💡 Laad Voorbeeld (Nieuw Seizoen)</button>
-    </div>
-
-    <div class="form-group">
-      <label>Teams per klasse (kopieer & plak uit Excel of typ teamcodes met komma's):</label>
-      <textarea id="auto-scheduler-input" style="width: 100%; height: 210px; font-family: monospace; font-size: 0.82rem; padding: 10px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;" placeholder="Hoofdklasse: OO 1, SV 1, BE 1, MA 1, DT 1, NG 1, LB 1, OS 1&#10;1e klasse: HE 1, BR 1, BE 2, VO 1, VL 1, NB 1, LE 1, WI 1&#10;..."></textarea>
-    </div>
-
-    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.8rem; color: #1e40af;">
-      <strong>Wat de automaat voor je optimaliseert:</strong>
-      <ul style="margin-left: 18px; margin-top: 4px;">
-        <li>Plaatst teams van dezelfde club in dezelfde klasse automatisch op 100% contra-posities (3&8 of 4&6).</li>
-        <li>Verdeelt de posities over alle klassen zodat clubs met 12 teams elke week 6T/6U spelen (en 4 teams 2T/2U).</li>
-        <li>Berekent automatisch welke klassen het vinkje <em>'Wissel T/U'</em> moeten krijgen voor minimale baancongestie.</li>
-      </ul>
-    </div>
-
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-      <span id="auto-scheduler-status" style="font-size: 0.82rem; font-weight: bold; color: var(--accent);"></span>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-outline" onclick="closeAutoSchedulerModal()">Annuleren</button>
-        <button class="btn btn-success" onclick="runAutoScheduler()">⚡ Bereken & Plaats Automatisch</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: PRE-FLIGHT CHECK (AUDIT RAPPORT) -->
-<div class="modal-overlay" id="preFlightModal">
-  <div class="modal-box" style="max-width: 720px; max-height: 90vh; overflow-y: auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--border); padding-bottom: 10px;">
-      <div>
-        <h3 style="color: var(--primary); font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
-          🔍 Pre-Flight Check (Audit Rapport)
-        </h3>
-        <p style="font-size: 0.82rem; color: var(--text-muted);">
-          Controleert automatisch alle 7 kritische kwaliteitspunten vóórdat het competitieprogramma naar de clubs gaat.
-        </p>
-      </div>
-      <div id="preflight-badge-overall" style="font-size: 1.1rem; font-weight: bold;"></div>
-    </div>
-
-    <div id="preflight-results-wrap" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;"></div>
-
-    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 12px;">
-      <button class="btn btn-success btn-sm" onclick="autoFixPreFlight()">
-        ⚡ Automatisch Herstellen & Optimaliseren
-      </button>
-      <button class="btn btn-outline" onclick="closePreFlightModal()">Sluiten</button>
-    </div>
-  </div>
-</div>
-</body></html>`;
+  const header = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>" + title + "</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.3;} table{border-collapse:collapse;width:100%;} th,td{border:1px solid #cbd5e1;padding:6px;font-size:10pt;} th{background:#f1f5f9;font-weight:bold;} h1{color:#1e3a8a;} h2{color:#475569;}</style></head><body>";
+  const footer = "</body></html>";
   const blob = new Blob(['\ufeff' + header + bodyHtml + footer], { type: 'application/msword;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadCSV(content, filename) {
+  const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function showTab(tabId) {
-  document.getElementById("tab-matrix").style.display = tabId === "tab-matrix" ? "block" : "none";
-  document.getElementById("tab-booklet").style.display = tabId === "tab-booklet" ? "block" : "none";
-  document.getElementById("tab-schedule").style.display = tabId === "tab-schedule" ? "block" : "none";
-  document.getElementById("tab-sheets").style.display = tabId === "tab-sheets" ? "block" : "none";
-  document.getElementById("tab-exports").style.display = tabId === "tab-exports" ? "block" : "none";
-  document.getElementById("tab-info").style.display = tabId === "tab-info" ? "block" : "none";
+  const allTabs = ["tab-matrix", "tab-booklet", "tab-schedule", "tab-sheets", "tab-exports", "tab-calendar", "tab-info"];
+  allTabs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === tabId) ? "block" : "none";
+  });
 
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  event.target.classList.add("active");
+  if (window.event && window.event.target && window.event.target.classList) {
+    window.event.target.classList.add("active");
+  }
 
-  document.getElementById("tab-calendar").style.display = tabId === "tab-calendar" ? "block" : "none";
   if (tabId === "tab-booklet") renderBooklet();
   if (tabId === "tab-schedule") renderSchedule();
   if (tabId === "tab-sheets") renderSheets();
   if (tabId === "tab-calendar") renderCalendarTable();
+  if (tabId === "tab-info") renderClubs();
 }
 
 
