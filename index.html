@@ -1192,7 +1192,7 @@ function renderBooklet() {
     <div class="booklet-day-block">
       <div class="booklet-day-header">
         <h2>Competitieprogramma NKB – KTO ${currentSeason} (${catLabel})</h2>
-        <h3>Wedstrijddag ${rNum} ${getMatchDate(rNum, false) ? `<span style="font-size:0.95rem; font-weight:normal; color:#475569;">(${getMatchDate(rNum, false)})</span>` : ""}</h3>
+        <h3>Wedstrijddag ${rNum}</h3>
         ${mode === "club" ? `<p style="font-weight:bold; color:#0369a1; font-size:1.05rem; margin-top:4px;">Programma voor: ${clubNames[selectedClub] || selectedClub}</p>` : ''}
       </div>
     `;
@@ -1270,7 +1270,7 @@ function renderSheets() {
         <div class="sheet-title-right">${catLabel}</div>
       </div>
       <div class="sheet-sub">
-        Verzamelformulier competitiewedstrijden ${currentSeason} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; datum: ${getMatchDate(round, list.some(m => m.classNum >= 8 && m.classNum <= 9)) || "___________________"}
+        Verzamelformulier competitiewedstrijden ${currentSeason} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; datum: ___________________
       </div>
       <div class="sheet-day-row">
         wedstrijddag &nbsp;&nbsp;&nbsp;&nbsp; ${round} &nbsp;&nbsp; ${cName}
@@ -2629,19 +2629,11 @@ function runPreFlightCheck() {
     });
   }
 
-  // 5. Datums gekoppeld
-  if (!calendarLinkEnabled) {
-    issues.push({
-      title: "ℹ️ Datumkoppeling staat uitgeschakeld",
-      desc: "Er worden lege datumlijnen (<code>datum: _________</code>) geprint op de verzamelformulieren. Dit is normaal als de seizoenskalender nog niet definitief is.",
-      type: "info"
-    });
-  } else {
-    passes.push({
-      title: "✅ Speeldata zijn gekoppeld aan wedstrijddagen",
-      desc: "De exacte zondagen verschijnen automatisch op de formulieren en in het programmaboekje."
-    });
-  }
+  // 5. Competitie-indeling op wedstrijddagen
+  passes.push({
+    title: "✅ Competitie-indeling gebaseerd op officiële wedstrijddagen",
+    desc: "Alle programma's en verzamelformulieren zijn eenduidig gekoppeld aan de officiële wedstrijddagen (1 t/m " + (currentCategory === 'jeugd' ? '10' : '18') + ")."
+  });
 
   totalPoints = Math.max(0, totalPoints);
 
