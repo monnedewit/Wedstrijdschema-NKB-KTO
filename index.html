@@ -428,7 +428,10 @@
           <button class="btn btn-outline" style="justify-content: flex-start;" onclick="downloadMatrixCSV()">
             🗂️ Invoermatrix Klassen (.csv)
           </button>
-          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="exportCrossTableExcel()">
+                    <button class="btn btn-outline" style="justify-content: flex-start;" onclick="openAutoSchedulerModal(); setTimeout(exportAutoSchedulerExcel, 100);" title="Download het Excel template om op je computer teams per klasse aan te passen">
+            📥 Download Indelings-Template (.xlsx)
+          </button>
+<button class="btn btn-outline" style="justify-content: flex-start;" onclick="exportCrossTableExcel()">
             📊 Indeling in de klassen (.xlsx)
           </button>
         </div>
@@ -2667,6 +2670,145 @@ function autoBalanceClub() {
 
 
 
+
+function exportAutoSchedulerExcel() {
+  if (typeof XLSX === "undefined") {
+    alert("Excel bibliotheek is nog niet geladen.");
+    return;
+  }
+  const classData = getCurrentClassData();
+  const cleanSeason = getCleanSeasonName();
+  const catLabel = currentCategory === 'jeugd' ? 'Jeugd' : 'Senioren';
+
+  // Opbouw van het Excel bestand
+  // Rij 1: Titel
+  // Rij 2: Uitleg / instructie
+  // Rij 3: Kolomkoppen (Klasse, Team 1, Team 2, ..., Team 10)
+  const rows = [
+    [`NKB - KTO Klassenindeling Template ${currentSeason} (${catLabel})`],
+    ["Instructie: Pas hieronder per klasse de teams aan (bijv. BE 1, OO 2 of bij jeugd BE A1, BE A2). Sla het bestand op en upload het direct weer in de planner."],
+    ["Klasse", "Team 1", "Team 2", "Team 3", "Team 4", "Team 5", "Team 6", "Team 7", "Team 8", "Team 9", "Team 10"]
+  ];
+
+  classData.forEach(c => {
+    const validTeams = c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-");
+    const r = [c.name];
+    for (let i = 0; i < 10; i++) {
+      r.push(validTeams[i] || "");
+    }
+    rows.push(r);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  
+  // Kolombreedtes instellen
+  ws['!cols'] = [
+    { wch: 20 }, // Klasse
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+    { wch: 10 }, { wch: 10 }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Klassenindeling");
+  XLSX.writeFile(wb, `nkb_kto_klassenindeling_${currentCategory}_${cleanSeason}_template.xlsx`);
+}
+
+function importAutoSchedulerExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (typeof XLSX === "undefined") {
+    alert("Excel bibliotheek is niet beschikbaar.");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      
+      // Zoek het juiste tabblad (of pak het eerste tabblad)
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      let parsedLines = [];
+
+      // Detecteer of het bestand rij-gebaseerd (Rij = Klasse) of kolom-gebaseerd (Kolom = Klasse) is
+      // We scannen alle rijen naar bekende klassennamen of rijen met meer dan 2 kolommen
+      for (let rIdx = 0; rIdx < jsonRows.length; rIdx++) {
+        const row = jsonRows[rIdx];
+        if (!row || row.length === 0) continue;
+
+        const firstCol = String(row[0] || "").trim();
+        // Sla titels en instructierijen over
+        if (firstCol.toLowerCase().startsWith("nkb") || firstCol.toLowerCase().startsWith("instructie") || firstCol.toLowerCase() === "klasse") {
+          continue;
+        }
+
+        // Als kolom A een klassenaam bevat en de overige kolommen teams zijn:
+        if (firstCol) {
+          const className = firstCol;
+          const teams = [];
+          for (let cIdx = 1; cIdx < row.length; cIdx++) {
+            const val = String(row[cIdx] || "").trim().toUpperCase().replace(/\s+/g, ' ');
+            if (val && val !== "-" && val !== "UNDEFINED") {
+              // Ondersteuning voor meerdere teams in 1 cel (bijv. door komma gescheiden)
+              const subTokens = val.split(/[,;\t]+/);
+              subTokens.forEach(st => {
+                const cleanSt = st.trim();
+                if (cleanSt && cleanSt !== "-") teams.push(cleanSt);
+              });
+            }
+          }
+
+          if (teams.length > 0) {
+            parsedLines.push(`${className}: ${teams.join(", ")}`);
+          }
+        }
+      }
+
+      // Als er op een andere manier kolommen gebruikt zijn (bijv. Kolom 1 = Hoofdklasse, Kolom 2 = 1e klasse)
+      if (parsedLines.length === 0 && jsonRows.length > 1) {
+        // Probeer kolomkoppen als klassen
+        const headerRow = jsonRows[0] || [];
+        for (let col = 0; col < headerRow.length; col++) {
+          const cName = String(headerRow[col] || "").trim();
+          if (cName) {
+            const teams = [];
+            for (let r = 1; r < jsonRows.length; r++) {
+              const val = String((jsonRows[r] && jsonRows[r][col]) || "").trim().toUpperCase();
+              if (val && val !== "-" && val !== "UNDEFINED") teams.push(val);
+            }
+            if (teams.length > 0) {
+              parsedLines.push(`${cName}: ${teams.join(", ")}`);
+            }
+          }
+        }
+      }
+
+      if (parsedLines.length === 0) {
+        alert("Kon geen klassen en teams vinden in het geüploade Excel-bestand. Gebruik bij voorkeur het gedownloade template.");
+        return;
+      }
+
+      const finalText = parsedLines.join("\n");
+      document.getElementById("auto-scheduler-input").value = finalText;
+      document.getElementById("auto-scheduler-status").innerHTML = `<span style="color:#059669; font-weight:bold;">✅ ${parsedLines.length} klassen succesvol ingeladen uit Excel! Klik nu op de groene knop 'Bereken & Plaats Automatisch'.</span>`;
+
+      // Reset file input zodat hetzelfde bestand nogmaals gekozen kan worden indien gewenst
+      event.target.value = "";
+    } catch(err) {
+      console.error(err);
+      alert("Fout bij het lezen van het Excel-bestand: " + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+
 // AUTOMATISCHE MATRIX GENERATOR & ROOSTER OPTIMALISATOR
 function openAutoSchedulerModal() {
   document.getElementById("autoSchedulerModal").style.display = "flex";
@@ -3564,10 +3706,17 @@ renderBalanceMonitor();
       Geef per klasse aan welke teams erin horen (of gebruik de huidige teams). De planner berekent automatisch de meest optimale posities (1 t/m 10) en Thuis/Uit-wissels, zodat grote clubs elke week netjes <strong>50% thuis en 50% uit</strong> schieten en zusterteams nooit tegelijk thuis spelen.
     </p>
 
-    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-      <button class="btn btn-outline btn-sm" onclick="loadCurrentTeamsIntoTextarea()">📋 Laad Huidige Teams in</button>
-      <button class="btn btn-outline btn-sm" onclick="clearAutoSchedulerTextarea()">🧹 Maak Leeg</button>
-      <button class="btn btn-outline btn-sm" onclick="loadSampleNewSeason()">💡 Laad Voorbeeld (Nieuw Seizoen)</button>
+    <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+      <button class="btn btn-primary btn-sm" onclick="exportAutoSchedulerExcel()" title="Download een kant-en-klaar Excel-bestand met alle klassen en teams om op je computer aan te passen">
+        📥 Download Excel Template (.xlsx)
+      </button>
+      <label class="btn btn-success btn-sm" style="cursor: pointer; margin-bottom: 0;" title="Upload het ingevulde of aangepaste Excel-bestand direct in de planner">
+        📤 Upload Ingevuld Excel Bestand (.xlsx)
+        <input type="file" id="excel-scheduler-file" accept=".xlsx, .xls" style="display:none;" onchange="importAutoSchedulerExcel(event)">
+      </label>
+      <button class="btn btn-outline btn-sm" onclick="loadCurrentTeamsIntoTextarea()">📋 Huidige Teams</button>
+      <button class="btn btn-outline btn-sm" onclick="clearAutoSchedulerTextarea()">🧹 Leegmaken</button>
+      <button class="btn btn-outline btn-sm" onclick="loadSampleNewSeason()">💡 Voorbeeld</button>
     </div>
 
     <div class="form-group">
