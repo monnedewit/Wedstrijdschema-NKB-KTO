@@ -1939,6 +1939,80 @@ function generateCrossTableData() {
   return { classData, clubRows };
 }
 
+function updateCrossTableCell(clubCode, classNum, inputVal) {
+  recordState('Kruistabel bewerkt');
+  const classData = getCurrentClassData();
+  const targetClass = classData.find(c => c.num === classNum);
+  if (!targetClass) return;
+
+  // Parse input into clean team numbers/identifiers (e.g. "1, 3" -> ["1", "3"] or "A1" -> ["A1"])
+  const rawTokens = inputVal.replace(/;/g, ',').split(',');
+  const newTeamNums = [];
+  rawTokens.forEach(tok => {
+    let clean = tok.trim().toUpperCase().replace(/\s+/g, '');
+    if (!clean || clean === '-') return;
+    if (clean.startsWith(clubCode)) {
+      clean = clean.substring(clubCode.length);
+    }
+    if (clean) newTeamNums.push(clean);
+  });
+
+  const newFullTeams = newTeamNums.map(num => `${clubCode} ${num}`);
+
+  // If any of these teams exist in other classes, remove them there so they don't appear double
+  newFullTeams.forEach(ft => {
+    classData.forEach(c => {
+      if (c.num !== classNum) {
+        for (let i = 0; i < c.teams.length; i++) {
+          if (c.teams[i] && c.teams[i].replace(/\s+/g, '') === ft.replace(/\s+/g, '')) {
+            c.teams[i] = "";
+          }
+        }
+      }
+    });
+  });
+
+  // Find existing slots of this club in targetClass
+  const existingSlots = [];
+  for (let i = 0; i < targetClass.teams.length; i++) {
+    const p = parseTeam(targetClass.teams[i]);
+    if (p && p.code === clubCode) {
+      existingSlots.push(i);
+    }
+  }
+
+  // Clear existing slots first
+  existingSlots.forEach(idx => {
+    targetClass.teams[idx] = "";
+  });
+
+  // Assign to previous slots as much as possible
+  const reusedSlots = existingSlots.slice(0, newFullTeams.length);
+  for (let i = 0; i < reusedSlots.length; i++) {
+    targetClass.teams[reusedSlots[i]] = newFullTeams[i];
+  }
+
+  // If there are more teams than previously existing slots, find empty slots
+  const remainingTeams = newFullTeams.slice(reusedSlots.length);
+  for (let t of remainingTeams) {
+    let emptyIdx = targetClass.teams.findIndex(slot => !slot || slot.trim() === "" || slot.trim() === "-");
+    if (emptyIdx !== -1) {
+      targetClass.teams[emptyIdx] = t;
+    } else {
+      alert(`Klasse ${targetClass.name} zit vol (maximaal 10 posities). Kon ${t} niet meer toevoegen.`);
+      break;
+    }
+  }
+
+  // Re-render all views
+  renderTable();
+  renderCrossTable();
+  renderSchedule();
+  renderBooklet();
+  renderSheets();
+  validateMatrix(false);
+}
+
 function renderCrossTable() {
   const container = document.getElementById("crossTableContainer");
   if (!container) return;
@@ -1951,8 +2025,8 @@ function renderCrossTable() {
         <h3 style="color: var(--primary); font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
           📊 Indeling in de klassen ${currentSeason} (${catLabel})
         </h3>
-        <p style="font-size: 0.82rem; color: var(--text-muted);">
-          Kruistabel overzicht van alle verenigingen met ingedeelde teams per klasse en Thuis/Uit baanbalans (exact conform officieel NKB-KTO document).
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+          Typ direct teamnummers in de vakjes (bijv. <code>1</code>, <code>1, 3</code> of <code>A1</code>). De invoermatrix en alle speelschema's worden realtime automatisch bijgewerkt!
         </p>
       </div>
       <div style="display: flex; gap: 8px;">
@@ -1964,49 +2038,61 @@ function renderCrossTable() {
     <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 6px;">
       <table class="data-table" style="font-size: 0.8rem; text-align: center; border-collapse: collapse; width: 100%;">
         <thead>
-          <tr style="background: #1e3a8a; color: white;">
-            <th style="padding: 6px; text-align: left; width: 140px;">Vereniging</th>
-            <th style="padding: 6px; width: 36px;">Code</th>
+          <tr style="background: #e2e8f0;">
+            <th style="padding: 8px 6px; text-align: left; width: 140px; color: #000000 !important; background: #e2e8f0 !important; font-weight: 800; border: 1px solid #cbd5e1;">Vereniging</th>
+            <th style="padding: 8px 4px; width: 40px; color: #000000 !important; background: #e2e8f0 !important; font-weight: 800; border: 1px solid #cbd5e1;">Code</th>
   `;
 
   classData.forEach(c => {
-    html += `<th style="padding: 6px; min-width: 44px; text-align: center;">${c.name.replace('klasse', '').trim()}</th>`;
+    html += `<th style="padding: 8px 4px; min-width: 48px; text-align: center; color: #000000 !important; background: #e2e8f0 !important; font-weight: 800; border: 1px solid #cbd5e1;">${c.name.replace('klasse', '').trim()}</th>`;
   });
 
   html += `
-            <th style="padding: 6px; background: #0f172a; width: 50px;">teams</th>
-            <th style="padding: 6px; background: #065f46; width: 40px;">th</th>
-            <th style="padding: 6px; background: #991b1b; width: 40px;">uit</th>
+            <th style="padding: 8px 4px; background: #334155 !important; color: #ffffff !important; width: 50px; font-weight: 800; border: 1px solid #cbd5e1;">teams</th>
+            <th style="padding: 8px 4px; background: #059669 !important; color: #ffffff !important; width: 40px; font-weight: 800; border: 1px solid #cbd5e1;">th</th>
+            <th style="padding: 8px 4px; background: #dc2626 !important; color: #ffffff !important; width: 40px; font-weight: 800; border: 1px solid #cbd5e1;">uit</th>
           </tr>
         </thead>
         <tbody>
   `;
 
   let grandTotalTeams = 0;
-  const activeClubCodes = Object.keys(clubRows).filter(code => clubRows[code].totalTeams > 0);
+  const allClubCodes = Object.keys(clubRows).sort();
 
-  activeClubCodes.forEach((code, idx) => {
+  allClubCodes.forEach((code, idx) => {
     const row = clubRows[code];
     grandTotalTeams += row.totalTeams;
     const bg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
 
     html += `
       <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
-        <td style="text-align: left; font-weight: bold; padding: 6px 8px; color: #1e3a8a;">${row.name}</td>
-        <td style="font-weight: bold; color: #475569;">${row.code}</td>
+        <td style="text-align: left; font-weight: bold; padding: 5px 8px; color: #1e3a8a; border: 1px solid #e2e8f0;">${row.name}</td>
+        <td style="font-weight: bold; color: #475569; padding: 5px 4px; border: 1px solid #e2e8f0;">${row.code}</td>
     `;
 
     classData.forEach(c => {
       const teamsInClass = row.classes[c.num] || [];
-      const cellText = teamsInClass.length > 0 ? teamsInClass.join(", ") : "-";
-      const cellStyle = teamsInClass.length > 0 ? "font-weight: bold; color: #0f172a; background: #eff6ff;" : "color: #cbd5e1;";
-      html += `<td style="padding: 6px 4px; ${cellStyle}">${cellText}</td>`;
+      const valText = teamsInClass.length > 0 ? teamsInClass.join(', ') : '';
+      const hasTeams = teamsInClass.length > 0;
+      const inputBg = hasTeams ? '#eff6ff' : '#ffffff';
+      const inputColor = hasTeams ? '#1e3a8a' : '#64748b';
+      const inputWeight = hasTeams ? 'bold' : 'normal';
+
+      html += `
+        <td style="padding: 3px 2px; border: 1px solid #e2e8f0;">
+          <input type="text" value="${valText}"
+            onchange="updateCrossTableCell('${code}', ${c.num}, this.value)"
+            title="${row.name} in ${c.name} (bijv. 1 of 1, 3)"
+            placeholder="-"
+            style="width: 100%; min-width: 36px; padding: 4px 2px; text-align: center; font-weight: ${inputWeight}; font-size: 0.8rem; color: ${inputColor}; background: ${inputBg}; border: 1px solid ${hasTeams ? '#93c5fd' : '#e2e8f0'}; border-radius: 4px; box-sizing: border-box;">
+        </td>
+      `;
     });
 
     html += `
-        <td style="font-weight: bold; background: #f1f5f9;">${row.totalTeams}</td>
-        <td style="font-weight: bold; color: #059669; background: #ecfdf5;">${row.homeEstimate}</td>
-        <td style="font-weight: bold; color: #dc2626; background: #fef2f2;">${row.awayEstimate}</td>
+        <td style="font-weight: bold; background: #f1f5f9; padding: 5px 4px; border: 1px solid #cbd5e1;">${row.totalTeams}</td>
+        <td style="font-weight: bold; color: #059669; background: #ecfdf5; padding: 5px 4px; border: 1px solid #cbd5e1;">${row.homeEstimate}</td>
+        <td style="font-weight: bold; color: #dc2626; background: #fef2f2; padding: 5px 4px; border: 1px solid #cbd5e1;">${row.awayEstimate}</td>
       </tr>
     `;
   });
@@ -2014,28 +2100,28 @@ function renderCrossTable() {
   // Footer row 1: Wissel T/U status
   html += `
     <tr style="background: #e2e8f0; font-weight: bold; border-top: 2px solid #334155;">
-      <td colspan="2" style="text-align: left; padding: 6px 8px;">Wissel T/U (Speelschema)</td>
+      <td colspan="2" style="text-align: left; padding: 6px 8px; color: #000000; border: 1px solid #cbd5e1;">Wissel T/U (Speelschema)</td>
   `;
   classData.forEach(c => {
-    html += `<td style="font-size: 0.72rem; color: ${c.swap ? '#b45309' : '#059669'};">${c.swap ? 'uit' : 'thuis'}</td>`;
+    html += `<td style="font-size: 0.75rem; color: ${c.swap ? '#b45309' : '#059669'}; font-weight: bold; padding: 6px 2px; border: 1px solid #cbd5e1;">${c.swap ? 'uit' : 'thuis'}</td>`;
   });
   html += `
-      <td></td><td></td><td></td>
+      <td style="border: 1px solid #cbd5e1;"></td><td style="border: 1px solid #cbd5e1;"></td><td style="border: 1px solid #cbd5e1;"></td>
     </tr>
   `;
 
   // Footer row 2: Aantal teams per klasse
   html += `
     <tr style="background: #cbd5e1; font-weight: bold;">
-      <td colspan="2" style="text-align: left; padding: 6px 8px;">Aantal teams per klasse</td>
+      <td colspan="2" style="text-align: left; padding: 6px 8px; color: #000000; border: 1px solid #94a3b8;">Aantal teams per klasse</td>
   `;
   classData.forEach(c => {
     const validCount = c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-").length;
-    html += `<td>${validCount}</td>`;
+    html += `<td style="font-weight: bold; color: #000000; padding: 6px 2px; border: 1px solid #94a3b8;">${validCount}</td>`;
   });
   html += `
-      <td style="background: #0f172a; color: white;">${grandTotalTeams}</td>
-      <td colspan="2"></td>
+      <td style="background: #0f172a; color: white; font-weight: bold; border: 1px solid #0f172a;">${grandTotalTeams}</td>
+      <td colspan="2" style="border: 1px solid #94a3b8;"></td>
     </tr>
   `;
 
