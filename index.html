@@ -193,7 +193,7 @@
   <button class="tab-btn" onclick="showTab('tab-sheets')">4. Verzamelformulieren</button>
   <button class="tab-btn" onclick="showTab('tab-exports')">5. Exports</button>
   <button class="tab-btn" onclick="showTab('tab-calendar')">6. Wedstrijdkalender & Speeldata</button>
-  <button class="tab-btn" onclick="showTab('tab-info')">Verenigingen & Clubbeheer</button>
+  <button class="tab-btn" onclick="showTab('tab-info')">7. Verenigingen & Mailen</button>
 </div>
 
 <!-- TAB 1: MATRIX -->
@@ -458,6 +458,28 @@
         </div>
       </div>
 
+      <!-- EMAIL SECTIE -->
+      <div style="border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: #f8fafc; border-top: 4px solid #6366f1;">
+        <h4 style="color: #4338ca; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+          ✉️ E-mailen naar Secretarissen
+        </h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+          Verzend het programma rechtstreeks naar clubs via <strong>wc@kloatscheetbond.nl</strong> of Hosting2GO.
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button class="btn btn-primary" style="justify-content: flex-start;" onclick="showTab('tab-info')">
+            📬 Naar Secretariaten & Mailen
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="copyAllSecretariesBCC()">
+            📋 Kopieer Alle E-mails (voor BCC)
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="openHosting2GoWebmail()">
+            🌐 Open Hosting2GO Webmail
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -511,14 +533,40 @@
   </div>
 </div>
 
-<!-- TAB 6: INFO & CLUBS -->
+<!-- TAB 7: INFO & CLUBS & MAILING -->
 <div id="tab-info" style="display: none;">
   <div class="card">
-    <div class="actions-bar">
-      <h3 style="color: var(--primary);">Aangesloten Verenigingen</h3>
-      <button class="btn btn-primary btn-sm" onclick="openAddClubModal()">➕ Nieuwe Vereniging Toevoegen</button>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+      <div>
+        <h3 style="color: var(--primary); font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+          📬 Verenigingen, Secretariaten & Mailen
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.86rem; margin-top: 2px;">
+          Beheer contactgegevens en stuur met één klik het competitieprogramma naar secretarissen en voorzitters (afzender: <strong>wc@kloatscheetbond.nl</strong>).
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-outline btn-sm" onclick="copyAllSecretariesBCC()" title="Kopieer alle e-mailadressen om in één keer naar alle clubs te mailen in BCC">
+          📋 Kopieer Alle E-mails (BCC)
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="openHosting2GoWebmail()" title="Open Hosting2GO Roundcube Webmail in een nieuw tabblad">
+          🌐 Hosting2GO Webmail
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="openAddClubModal()">
+          ➕ Nieuwe Vereniging Toevoegen
+        </button>
+      </div>
     </div>
-    <div id="club-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; font-size: 0.85rem;"></div>
+
+    <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.82rem; color: #3730a3; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <strong>Hosting2GO Webmail Tip:</strong> Klik bij een club op <strong>'✉️ Mail'</strong> om direct je e-mailprogramma te openen, of op <strong>'📋 Tekst'</strong> om een kant-en-klaar bericht te kopiëren en in Hosting2GO Webmail (<code>wc@kloatscheetbond.nl</code>) te plakken.
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openHosting2GoWebmail()">Naar Webmail Inloggen &rarr;</button>
+    </div>
+
+    <div id="club-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; font-size: 0.85rem;"></div>
   </div>
 </div>
 
@@ -533,6 +581,10 @@
     <div class="form-group">
       <label>Volledige Verenigingsnaam:</label>
       <input type="text" id="new-club-name" placeholder="bijv. De Veldklootschieters">
+    </div>
+    <div class="form-group">
+      <label>E-mailadres Secretaris / Bestuur:</label>
+      <input type="email" id="new-club-email" placeholder="secretaris@vereniging.nl">
     </div>
     <div style="display:flex; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeAddClubModal()">Annuleren</button>
@@ -591,6 +643,48 @@
 // Active category: 'senioren' or 'jeugd'
 let currentCategory = "senioren";
 let currentSeason = "2026 - 2027";
+
+
+let clubContacts = {
+  'BE': { email: 'secretariaat@kvbeuningen.nl', person: 'Secretaris' },
+  'BR': { email: 'secretariaat@debrink.nl', person: 'Secretaris' },
+  'DB': { email: 'info@dorpboer.nl', person: 'Secretaris' },
+  'DT': { email: 'secretariaat@detoekomst.nl', person: 'Secretaris' },
+  'GU': { email: 'info@degunne.nl', person: 'Secretaris' },
+  'HE': { email: 'info@klootschieten-hertme.nl', person: 'Secretaris' },
+  'JV': 'secretariaat@kvjava.nl',
+  'KK': { email: 'info@kolkersveld.nl', person: 'Secretaris' },
+  'LB': { email: 'secretariaat@lattropbreklenkamp.nl', person: 'Secretaris' },
+  'LE': { email: 'secretariaat@lemselo.nl', person: 'Secretaris' },
+  'MA': { email: 'info@kvmander.nl', person: 'Secretaris' },
+  'NB': { email: 'secretaris@noordberghuizen.nl', person: 'Secretaris' },
+  'NG': { email: 'secretariaat@nooitgedacht.nl', person: 'Secretaris' },
+  'NI': { email: 'info@denijstad.nl', person: 'Secretaris' },
+  'OG': { email: 'info@onsgenoegen.nl', person: 'Secretaris' },
+  'OO': { email: 'secretariaat@oud-ootmarsum.nl', person: 'Secretaris' },
+  'OS': { email: 'info@onsstreven.nl', person: 'Secretaris' },
+  'RE': { email: 'secretariaat@kvreutum.nl', person: 'Secretaris' },
+  'RO': { email: 'info@kvrossum.nl', person: 'Secretaris' },
+  'SV': { email: 'info@steedsvooruit.nl', person: 'Secretaris' },
+  'VL': { email: 'secretariaat@vooruitlosser.nl', person: 'Secretaris' },
+  'VO': { email: 'info@vooruitzicht.nl', person: 'Secretaris' },
+  'WI': { email: 'secretariaat@wilskracht.nl', person: 'Secretaris' }
+};
+
+function getClubEmail(code) {
+  if (clubContacts[code]) {
+    return typeof clubContacts[code] === 'object' ? (clubContacts[code].email || '') : clubContacts[code];
+  }
+  return '';
+}
+
+function setClubEmail(code, email) {
+  if (!clubContacts[code] || typeof clubContacts[code] !== 'object') {
+    clubContacts[code] = { email: email.trim(), person: 'Secretaris' };
+  } else {
+    clubContacts[code].email = email.trim();
+  }
+}
 
 let clubNames = {
   'BE': 'Beuningen', 'BR': 'De Brink', 'DB': 'Dorp Boer', 'DT': 'De Toekomst',
@@ -1511,6 +1605,7 @@ function renderSheets() {
   container.innerHTML = html;
 }
 
+
 function renderClubs() {
   const grid = document.getElementById("club-grid");
   const classData = getCurrentClassData();
@@ -1529,20 +1624,50 @@ function renderClubs() {
   Object.keys(clubNames).sort().forEach(code => {
     const cName = clubNames[code];
     const count = teamCounts[code] || 0;
+    const email = getClubEmail(code);
+
     html += `
-      <div style="background:#f8fafc; border:1px solid var(--border); border-radius:6px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,0.04); display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
         <div>
-          <div style="font-weight:700; color:var(--primary); font-size:0.95rem;">${code}: ${cName}</div>
-          <div style="font-size:0.75rem; color:var(--text-muted);">${count > 0 ? count + ' team(s) ingedeeld' : 'Geen teams ingedeeld'}</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div style="font-weight:700; color:var(--primary); font-size:1rem;">${code}: ${cName}</div>
+            <span class="status-badge ${count > 0 ? 'badge-8' : ''}" style="font-size:0.72rem;">${count} teams</span>
+          </div>
+          <div style="margin-top:6px; font-size:0.8rem; color:${email ? '#0f172a' : '#94a3b8'}; display:flex; align-items:center; gap:4px;">
+            <span>✉️</span>
+            <span style="cursor:pointer; text-decoration:${email ? 'none' : 'underline'};" onclick="editClubEmail('${code}')" title="Klik om e-mailadres te bewerken">
+              ${email || 'Geen e-mail (klik om in te stellen)'}
+            </span>
+          </div>
         </div>
-        <div style="display:flex; gap:4px;">
-          <button class="btn-arrow" style="padding:4px 6px;" title="Naam bewerken" onclick="editClub('${code}')">✏️</button>
-          <button class="btn-arrow" style="padding:4px 6px; color:var(--danger);" title="Vereniging verwijderen" onclick="deleteClub('${code}')">🗑️</button>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:8px; margin-top:4px;">
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-primary btn-sm" onclick="openMailComposer('${code}')" title="Stuur competitieprogramma per mail naar ${cName}">
+              ✉️ Mail
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="copyClubEmailText('${code}')" title="Kopieer concepttekst voor Hosting2GO webmail">
+              📋 Tekst
+            </button>
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button class="btn-arrow" style="padding:4px 6px;" title="Verenigingsnaam en e-mailadres bewerken" onclick="editClub('${code}')">✏️</button>
+            <button class="btn-arrow" style="padding:4px 6px; color:var(--danger);" title="Vereniging verwijderen" onclick="deleteClub('${code}')">🗑️</button>
+          </div>
         </div>
       </div>
     `;
   });
   grid.innerHTML = html;
+}
+
+function editClubEmail(code) {
+  const current = getClubEmail(code);
+  const newEmail = prompt(`Voer het e-mailadres in voor secretaris/bestuur van ${clubNames[code]}:`, current);
+  if (newEmail !== null) {
+    setClubEmail(code, newEmail);
+    renderClubs();
+  }
 }
 
 function deleteClub(code) {
@@ -1563,6 +1688,7 @@ function deleteClub(code) {
 
   if (confirm(`Weet je zeker dat je vereniging '${cName}' (${code}) wilt verwijderen?${warning}`)) {
     delete clubNames[code];
+    delete clubContacts[code];
     renderClubs();
     initFilters();
     renderSchedule();
@@ -1574,20 +1700,27 @@ function deleteClub(code) {
 
 function editClub(code) {
   const current = clubNames[code];
+  const currentEmail = getClubEmail(code);
   const newName = prompt(`Pas de naam aan voor vereniging ${code}:`, current);
   if (newName && newName.trim() !== "") {
     clubNames[code] = newName.trim();
-    renderClubs();
-    initFilters();
-    renderSchedule();
-    renderBooklet();
-    renderSheets();
   }
+  const newEmail = prompt(`Pas het e-mailadres aan voor ${clubNames[code]}:`, currentEmail);
+  if (newEmail !== null) {
+    setClubEmail(code, newEmail);
+  }
+  renderClubs();
+  initFilters();
+  renderSchedule();
+  renderBooklet();
+  renderSheets();
 }
 
 function openAddClubModal() {
   document.getElementById("new-club-code").value = "";
   document.getElementById("new-club-name").value = "";
+  const emailInput = document.getElementById("new-club-email");
+  if (emailInput) emailInput.value = "";
   document.getElementById("addClubModal").style.display = "flex";
 }
 
@@ -1598,15 +1731,112 @@ function closeAddClubModal() {
 function saveNewClub() {
   const code = document.getElementById("new-club-code").value.trim().toUpperCase();
   const name = document.getElementById("new-club-name").value.trim();
+  const emailInput = document.getElementById("new-club-email");
+  const email = emailInput ? emailInput.value.trim() : "";
+
   if (code.length !== 2 || !name) {
     alert("Voer een geldige 2-letterige code en verenigingsnaam in.");
     return;
   }
   clubNames[code] = name;
+  if (email) {
+    setClubEmail(code, email);
+  }
   closeAddClubModal();
   renderClubs();
   initFilters();
   alert(`Vereniging '${name}' (${code}) is succesvol toegevoegd!`);
+}
+
+// -------------------------------------------------------------
+// E-MAIL & SECRETARIATEN MODULE (HOSTING2GO & WC@KLOATSCHEETBOND.NL)
+// -------------------------------------------------------------
+function generateClubEmailBody(clubCode) {
+  const cName = clubNames[clubCode] || clubCode;
+  const matches = generateMatches();
+  const catLabel = currentCategory === 'jeugd' ? 'Jeugd' : 'Senioren';
+  
+  // Find teams of this club
+  const classData = getCurrentClassData();
+  const myTeams = [];
+  classData.forEach(c => {
+    c.teams.forEach(t => {
+      const p = parseTeam(t);
+      if (p && p.code === clubCode) {
+        myTeams.push(`${t} (${c.name})`);
+      }
+    });
+  });
+
+  let body = `Beste secretaris / bestuur van ${cName},\n\n` +
+    `Hierbij ontvangt u het programma voor de ${catLabel}competitie seizoen ${currentSeason} namens de NKB - KTO Wedstrijdcommissie.\n\n` +
+    `Uw ingedeelde teams:\n` +
+    (myTeams.length > 0 ? myTeams.map(t => `- ${t}`).join('\n') : '- Geen teams ingedeeld') + `\n\n` +
+    `Belangrijke aandachtspunten:\n` +
+    `1. Uitslagen op de wedstrijddag direct doorgeven voor 17.00 uur via uitslagen.klootschieten.com\n` +
+    `2. Bij verhindering of afgelasting tijdig contact opnemen met de wedstrijdcommissie en de tegenstander.\n\n` +
+    `Met sportieve groet,\n` +
+    `Wedstrijdcommissie N.K.B. en K.T.O.-T.K.C.\n` +
+    `E-mail: wc@kloatscheetbond.nl`;
+
+  return body;
+}
+
+function openMailComposer(clubCode) {
+  const cName = clubNames[clubCode] || clubCode;
+  const email = getClubEmail(clubCode);
+  const catLabel = currentCategory === 'jeugd' ? 'Jeugd' : 'Senioren';
+  const subject = `Competitieprogramma NKB - KTO ${currentSeason} (${catLabel}) - ${cName}`;
+  const body = generateClubEmailBody(clubCode);
+
+  if (!email) {
+    const enteredEmail = prompt(`Er is nog geen e-mailadres ingesteld voor ${cName}. Vul het e-mailadres in:`, "secretaris@...");
+    if (enteredEmail && enteredEmail.trim()) {
+      setClubEmail(clubCode, enteredEmail);
+      renderClubs();
+    } else {
+      return;
+    }
+  }
+
+  const finalEmail = getClubEmail(clubCode);
+  const mailtoUrl = `mailto:${encodeURIComponent(finalEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailtoUrl;
+}
+
+function copyClubEmailText(clubCode) {
+  const body = generateClubEmailBody(clubCode);
+  navigator.clipboard.writeText(body).then(() => {
+    alert(`De complete concept e-mail voor ${clubNames[clubCode]} is gekopieerd naar je klembord! Je kunt deze direct plakken in Hosting2GO Webmail.`);
+  }).catch(() => {
+    prompt("Kopieer de e-mailtekst hieronder (Ctrl+C):", body);
+  });
+}
+
+function copyAllSecretariesBCC() {
+  const emails = [];
+  Object.keys(clubNames).sort().forEach(code => {
+    const em = getClubEmail(code);
+    if (em && em.includes("@")) {
+      emails.push(em);
+    }
+  });
+
+  if (emails.length === 0) {
+    alert("Er zijn nog geen e-mailadressen ingevuld bij de verenigingen.");
+    return;
+  }
+
+  const bccString = emails.join("; ");
+  navigator.clipboard.writeText(bccString).then(() => {
+    alert(`Alle ${emails.length} e-mailadressen zijn gekopieerd naar je klembord!\n\nPlak ze nu direct in het BCC-veld in Hosting2GO Webmail (mail.hosting2go.nl of webmail.kloatscheetbond.nl).`);
+  }).catch(() => {
+    prompt("Kopieer alle e-mailadressen voor BCC (Ctrl+C):", bccString);
+  });
+}
+
+function openHosting2GoWebmail() {
+  window.open("https://mail.hosting2go.nl", "_blank");
 }
 
 
