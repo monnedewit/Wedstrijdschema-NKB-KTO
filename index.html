@@ -70,7 +70,7 @@
   table.matrix-table tr:hover { background: #f8fafc; }
   
   .team-cell-wrap { display: flex; align-items: center; justify-content: center; gap: 2px; }
-  input.team-cell { width: 56px; padding: 4px; text-align: center; font-weight: bold; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.82rem; text-transform: uppercase; }
+  input.team-cell { width: 68px; padding: 4px; text-align: center; font-weight: bold; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.82rem; text-transform: uppercase; }
   input.team-cell:focus { outline: 2px solid var(--primary-light); background: #eff6ff; }
   input.team-cell.empty-cell { background: #f8fafc; color: #94a3b8; font-weight: normal; }
 
@@ -188,6 +188,7 @@
 
 <div class="tabs no-print">
   <button class="tab-btn active" onclick="showTab('tab-matrix')">1. Invoermatrix Klassen</button>
+  <button class="tab-btn" onclick="showTab('tab-crosstable')">📊 Kruistabel Klassenoverzicht</button>
   <button class="tab-btn" onclick="showTab('tab-booklet')">2. Competitieprogramma (PDF / Boekje)</button>
   <button class="tab-btn" onclick="showTab('tab-schedule')">3. Speelschema Tabel</button>
   <button class="tab-btn" onclick="showTab('tab-sheets')">4. Verzamelformulieren</button>
@@ -260,6 +261,11 @@
     </div>
 
   </div>
+</div>
+
+<!-- TAB: KRUISTABEL KLASSENOVERZICHT (BONDSOVERZICHT) -->
+<div id="tab-crosstable" style="display: none;">
+  <div class="card" id="crossTableContainer"></div>
 </div>
 
 <!-- TAB 2: COMPETITIEPROGRAMMA (PDF / BOEKJE LAYOUT) -->
@@ -358,6 +364,11 @@
   </div>
 </div>
 
+<!-- TAB: KRUISTABEL KLASSENOVERZICHT (BONDSOVERZICHT) -->
+<div id="tab-crosstable" style="display: none;">
+  <div class="card" id="crossTableContainer"></div>
+</div>
+
 <!-- TAB 4: VERZAMELFORMULIEREN -->
 <div id="tab-sheets" style="display: none;">
   <div class="card no-print">
@@ -416,6 +427,9 @@
           </button>
           <button class="btn btn-outline" style="justify-content: flex-start;" onclick="downloadMatrixCSV()">
             🗂️ Invoermatrix Klassen (.csv)
+          </button>
+          <button class="btn btn-outline" style="justify-content: flex-start;" onclick="exportCrossTableExcel()">
+            📊 Indeling in de klassen (.xlsx)
           </button>
         </div>
       </div>
@@ -490,20 +504,26 @@
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
       <div>
         <h3 style="color: var(--primary); font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
-          📅 Wedstrijdkalender & Speeldata (${currentSeason})
+          📅 Wedstrijdkalender & Speeldata (<span id="cal-season-label">2026 - 2027</span>)
         </h3>
         <p style="color: var(--text-muted); font-size: 0.86rem; margin-top: 2px;">
           Koppel echte zondagen aan de wedstrijddagen (voor 8-tallen, 9/10-tallen en junioren). Als het schema nog niet klaar is, kun je de datumkoppeling eenvoudig uitzetten.
         </p>
       </div>
 
-      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <label style="display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 0.88rem; background: #e0f2fe; padding: 6px 12px; border-radius: 6px; cursor: pointer;">
           <input type="checkbox" id="calendar-link-enabled" onchange="toggleCalendarLink(this.checked)" checked>
           Datums koppelen aan formulieren & boekjes
         </label>
-        <button class="btn btn-outline btn-sm" onclick="resetCalendarToDefault()">Herstel 2026-2027 Data</button>
-        <button class="btn btn-success btn-sm" onclick="saveCalendarData()">💾 Kalender Opslaan</button>
+        <button class="btn btn-primary btn-sm" onclick="shiftActiveCalendar(1)" title="Verschuif alle speeldagen met 1 jaar (+52 weken) naar de corresponderende nieuwe zondagen">
+          ⚡ Verschuif +1 Jaar (52 wkn)
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="shiftActiveCalendar(-1)" title="Verschuif alle speeldagen met -1 jaar (-52 weken)">
+          ⚡ Verschuif -1 Jaar
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="resetCalendarToDefault()">Herstel Standaard</button>
+        <button class="btn btn-success btn-sm" onclick="saveCalendarData()">💾 Opslaan</button>
       </div>
     </div>
 
@@ -546,15 +566,21 @@
         </p>
       </div>
 
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button class="btn btn-outline btn-sm" onclick="copyAllSecretariesBCC()" title="Kopieer alle e-mailadressen om in één keer naar alle clubs te mailen in BCC">
-          📋 Kopieer Alle E-mails (BCC)
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button class="btn btn-outline btn-sm" onclick="copyAllSecretariesBCC('sec')" title="Kopieer alle e-mailadressen van de secretarissen">
+          📋 Secretarissen (BCC)
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="copyAllSecretariesBCC('chair')" title="Kopieer alle e-mailadressen van de voorzitters">
+          👑 Voorzitters (BCC)
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="copyAllSecretariesBCC('all')" title="Kopieer secretarissen én voorzitters voor algemene bondsmededelingen">
+          👥 Allen (BCC)
         </button>
         <button class="btn btn-outline btn-sm" onclick="openHosting2GoWebmail()" title="Open Hosting2GO Roundcube Webmail in een nieuw tabblad">
           🌐 Hosting2GO Webmail
         </button>
         <button class="btn btn-primary btn-sm" onclick="openAddClubModal()">
-          ➕ Nieuwe Vereniging Toevoegen
+          ➕ Nieuwe Vereniging
         </button>
       </div>
     </div>
@@ -589,6 +615,58 @@
     <div style="display:flex; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeAddClubModal()">Annuleren</button>
       <button class="btn btn-success" onclick="saveNewClub()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDIT CLUB & CONTACT PERSONS -->
+<div class="modal-overlay" id="editContactsModal">
+  <div class="modal-box" style="max-width: 520px;">
+    <h3 id="edit-contacts-title" style="color: var(--primary); display: flex; align-items: center; gap: 8px;">
+      ✏️ Vereniging & Contactpersonen Bewerken
+    </h3>
+    <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+      Beheer hier de contactgegevens van de secretaris en voorzitter. Deze worden direct gebruikt bij het versturen van e-mails vanuit <strong>wc@kloatscheetbond.nl</strong>.
+    </p>
+
+    <input type="hidden" id="edit-club-code">
+
+    <div class="form-group">
+      <label>Volledige Verenigingsnaam:</label>
+      <input type="text" id="edit-club-name" style="font-weight: bold;">
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+      <h4 style="font-size: 0.9rem; color: var(--primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+        ✉️ Secretaris / Wedstrijdsecretariaat
+      </h4>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <label style="font-size: 0.8rem;">Naam Secretaris:</label>
+        <input type="text" id="edit-sec-name" placeholder="bijv. Jan Jansen">
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label style="font-size: 0.8rem;">E-mailadres Secretaris:</label>
+        <input type="email" id="edit-sec-email" placeholder="secretariaat@vereniging.nl">
+      </div>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+      <h4 style="font-size: 0.9rem; color: #92400e; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+        👑 Voorzitter
+      </h4>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <label style="font-size: 0.8rem;">Naam Voorzitter:</label>
+        <input type="text" id="edit-chair-name" placeholder="bijv. Piet Bakker">
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label style="font-size: 0.8rem;">E-mailadres Voorzitter:</label>
+        <input type="email" id="edit-chair-email" placeholder="voorzitter@vereniging.nl">
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button class="btn btn-outline" onclick="closeEditContactsModal()">Annuleren</button>
+      <button class="btn btn-success" onclick="saveClubContacts()">💾 Wijzigingen Opslaan</button>
     </div>
   </div>
 </div>
@@ -637,7 +715,7 @@
       <button class="btn btn-primary" onclick="executeMoveTeam()">Bevestig</button>
     </div>
   </div>
-</div>v>
+</div>
 
 <script>
 // Active category: 'senioren' or 'jeugd'
@@ -646,44 +724,45 @@ let currentSeason = "2026 - 2027";
 
 
 let clubContacts = {
-  'BE': { email: 'secretariaat@kvbeuningen.nl', person: 'Secretaris' },
-  'BR': { email: 'secretariaat@debrink.nl', person: 'Secretaris' },
-  'DB': { email: 'info@dorpboer.nl', person: 'Secretaris' },
-  'DT': { email: 'secretariaat@detoekomst.nl', person: 'Secretaris' },
-  'GU': { email: 'info@degunne.nl', person: 'Secretaris' },
-  'HE': { email: 'info@klootschieten-hertme.nl', person: 'Secretaris' },
-  'JV': 'secretariaat@kvjava.nl',
-  'KK': { email: 'info@kolkersveld.nl', person: 'Secretaris' },
-  'LB': { email: 'secretariaat@lattropbreklenkamp.nl', person: 'Secretaris' },
-  'LE': { email: 'secretariaat@lemselo.nl', person: 'Secretaris' },
-  'MA': { email: 'info@kvmander.nl', person: 'Secretaris' },
-  'NB': { email: 'secretaris@noordberghuizen.nl', person: 'Secretaris' },
-  'NG': { email: 'secretariaat@nooitgedacht.nl', person: 'Secretaris' },
-  'NI': { email: 'info@denijstad.nl', person: 'Secretaris' },
-  'OG': { email: 'info@onsgenoegen.nl', person: 'Secretaris' },
-  'OO': { email: 'secretariaat@oud-ootmarsum.nl', person: 'Secretaris' },
-  'OS': { email: 'info@onsstreven.nl', person: 'Secretaris' },
-  'RE': { email: 'secretariaat@kvreutum.nl', person: 'Secretaris' },
-  'RO': { email: 'info@kvrossum.nl', person: 'Secretaris' },
-  'SV': { email: 'info@steedsvooruit.nl', person: 'Secretaris' },
-  'VL': { email: 'secretariaat@vooruitlosser.nl', person: 'Secretaris' },
-  'VO': { email: 'info@vooruitzicht.nl', person: 'Secretaris' },
-  'WI': { email: 'secretariaat@wilskracht.nl', person: 'Secretaris' }
+  'BE': { secName: 'Secretariaat', secEmail: 'secretariaat@kvbeuningen.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@kvbeuningen.nl' },
+  'BR': { secName: 'Secretariaat', secEmail: 'secretariaat@debrink.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@debrink.nl' },
+  'DB': { secName: 'Secretariaat', secEmail: 'info@dorpboer.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'DT': { secName: 'Secretariaat', secEmail: 'secretariaat@detoekomst.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@detoekomst.nl' },
+  'GU': { secName: 'Secretariaat', secEmail: 'info@degunne.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'HE': { secName: 'Secretariaat', secEmail: 'info@klootschieten-hertme.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'JV': { secName: 'Secretariaat', secEmail: 'secretariaat@kvjava.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'KK': { secName: 'Secretariaat', secEmail: 'info@kolkersveld.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'LB': { secName: 'Secretariaat', secEmail: 'secretariaat@lattropbreklenkamp.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'LE': { secName: 'Secretariaat', secEmail: 'secretariaat@lemselo.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@lemselo.nl' },
+  'MA': { secName: 'Secretariaat', secEmail: 'info@kvmander.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'NB': { secName: 'Secretariaat', secEmail: 'secretaris@noordberghuizen.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@noordberghuizen.nl' },
+  'NG': { secName: 'Secretariaat', secEmail: 'secretariaat@nooitgedacht.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@nooitgedacht.nl' },
+  'NI': { secName: 'Secretariaat', secEmail: 'info@denijstad.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'OG': { secName: 'Secretariaat', secEmail: 'info@onsgenoegen.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'OO': { secName: 'Secretariaat', secEmail: 'secretariaat@oud-ootmarsum.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@oud-ootmarsum.nl' },
+  'OS': { secName: 'Secretariaat', secEmail: 'info@onsstreven.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@onsstreven.nl' },
+  'RE': { secName: 'Secretariaat', secEmail: 'secretariaat@kvreutum.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'RO': { secName: 'Secretariaat', secEmail: 'info@kvrossum.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'SV': { secName: 'Secretariaat', secEmail: 'info@steedsvooruit.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'VL': { secName: 'Secretariaat', secEmail: 'secretariaat@vooruitlosser.nl', chairName: 'Voorzitter', chairEmail: 'voorzitter@vooruitlosser.nl' },
+  'VO': { secName: 'Secretariaat', secEmail: 'info@vooruitzicht.nl', chairName: 'Voorzitter', chairEmail: '' },
+  'WI': { secName: 'Secretariaat', secEmail: 'secretariaat@wilskracht.nl', chairName: 'Voorzitter', chairEmail: '' }
 };
 
-function getClubEmail(code) {
-  if (clubContacts[code]) {
-    return typeof clubContacts[code] === 'object' ? (clubContacts[code].email || '') : clubContacts[code];
+function getClubContact(code) {
+  if (!clubContacts[code]) {
+    clubContacts[code] = { secName: 'Secretaris', secEmail: '', chairName: 'Voorzitter', chairEmail: '' };
+  } else if (typeof clubContacts[code] === 'string') {
+    clubContacts[code] = { secName: 'Secretaris', secEmail: clubContacts[code], chairName: 'Voorzitter', chairEmail: '' };
+  } else if (!clubContacts[code].secEmail && clubContacts[code].email) {
+    clubContacts[code] = {
+      secName: clubContacts[code].person || 'Secretaris',
+      secEmail: clubContacts[code].email || '',
+      chairName: 'Voorzitter',
+      chairEmail: ''
+    };
   }
-  return '';
-}
-
-function setClubEmail(code, email) {
-  if (!clubContacts[code] || typeof clubContacts[code] !== 'object') {
-    clubContacts[code] = { email: email.trim(), person: 'Secretaris' };
-  } else {
-    clubContacts[code].email = email.trim();
-  }
+  return clubContacts[code];
 }
 
 let clubNames = {
@@ -712,12 +791,12 @@ const defaultSenioren2026 = [
 ];
 
 const defaultJeugd2026 = [
-  { name: "Klasse A", num: 1, swap: false, teams: ["BE 1", "OO 1", "NG 1", "DT 1", "SV 1", "LE 1", "VO 1", "OS 1", "", ""] },
-  { name: "Klasse B", num: 2, swap: false, teams: ["BR 1", "HE 1", "BE 2", "LB 1", "RE 1", "NB 1", "VL 1", "WI 1", "", ""] },
-  { name: "Klasse C", num: 3, swap: false, teams: ["OO 2", "NG 2", "BE 3", "VO 2", "KK 1", "JV 1", "RO 1", "DB 1", "", ""] },
-  { name: "Klasse D", num: 4, swap: true, teams: ["DT 2", "LE 2", "OS 2", "SV 2", "GU 1", "OG 1", "NI 1", "MA 1", "", ""] },
-  { name: "Klasse E", num: 5, swap: true, teams: ["BE 4", "NG 3", "OO 3", "BR 2", "VO 3", "VL 2", "RE 2", "HE 2", "", ""] },
-  { name: "Klasse F", num: 6, swap: false, teams: ["LE 3", "DT 3", "SV 3", "OS 3", "BE 5", "NG 4", "", "", "", ""] }
+  { name: "Klasse A", num: 1, swap: false, teams: ["BE A1", "OO A1", "NG A1", "DT A1", "SV A1", "LE A1", "VO A1", "OS A1", "", ""] },
+  { name: "Klasse B", num: 2, swap: false, teams: ["BR B1", "HE B1", "BE A2", "LB B1", "RE B1", "NB B1", "VL B1", "WI B1", "", ""] },
+  { name: "Klasse C", num: 3, swap: false, teams: ["OO C1", "NG C1", "BE C1", "VO C1", "KK C1", "JV C1", "RO C1", "DB C1", "", ""] },
+  { name: "Klasse D", num: 4, swap: true, teams: ["DT D1", "LE D1", "OS D1", "SV D1", "GU D1", "OG D1", "NI D1", "MA D1", "", ""] },
+  { name: "Klasse E", num: 5, swap: true, teams: ["BE C2", "NG C2", "OO C2", "BR E1", "VO E1", "VL E1", "RE E1", "HE E1", "", ""] },
+  { name: "Klasse F", num: 6, swap: false, teams: ["LE F1", "DT F1", "SV F1", "OS F1", "BE E1", "NG F1", "", "", "", ""] }
 ];
 
 let seasonsData = {
@@ -837,6 +916,7 @@ function changeSeason(season) {
   renderSchedule();
   renderBooklet();
   renderSheets();
+  renderCalendarTable();
 }
 
 function promptNewSeason() {
@@ -853,8 +933,25 @@ function promptNewSeason() {
       senioren: JSON.parse(JSON.stringify(curObj.senioren || defaultSenioren2026)),
       jeugd: JSON.parse(JSON.stringify(curObj.jeugd || defaultJeugd2026))
     };
+
+    // Calculate year difference for calendar shift
+    let startYearNew = 2027;
+    let startYearCur = 2026;
+    const mNew = sName.match(/(\d{4})/);
+    const mCur = currentSeason.match(/(\d{4})/);
+    if (mNew) startYearNew = parseInt(mNew[1]);
+    if (mCur) startYearCur = parseInt(mCur[1]);
+    const yearDiff = startYearNew - startYearCur;
+
+    // Automatically duplicate & shift the calendar data to matching Sundays
+    const prevCalendar = getCurrentCalendar();
+    seasonsCalendar[sName] = prevCalendar.map(row => ({
+      ...row,
+      date: shiftDutchDate(row.date, yearDiff !== 0 ? yearDiff : 1)
+    }));
+
     currentSeason = sName;
-    alert(`Seizoen '${currentSeason}' is aangemaakt voor Senioren én Jeugd! Het voorgaande seizoen blijft volledig bewaard.`);
+    alert(`Seizoen '${currentSeason}' is succesvol aangemaakt!\n\nAlle teams, klassen én de complete wedstrijdkalender (automatisch doorgeschoven naar de nieuwe zondagen) zijn direct speelklaar.`);
   }
   renderSeasonSelector();
   renderTable();
@@ -862,6 +959,7 @@ function promptNewSeason() {
   renderSchedule();
   renderBooklet();
   renderSheets();
+  renderCalendarTable();
 }
 
 function promptDeleteSeason() {
@@ -1606,6 +1704,7 @@ function renderSheets() {
 }
 
 
+
 function renderClubs() {
   const grid = document.getElementById("club-grid");
   const classData = getCurrentClassData();
@@ -1624,35 +1723,52 @@ function renderClubs() {
   Object.keys(clubNames).sort().forEach(code => {
     const cName = clubNames[code];
     const count = teamCounts[code] || 0;
-    const email = getClubEmail(code);
+    const c = getClubContact(code);
 
     html += `
-      <div style="background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,0.04); display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
+      <div style="background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
         <div>
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div style="font-weight:700; color:var(--primary); font-size:1rem;">${code}: ${cName}</div>
-            <span class="status-badge ${count > 0 ? 'badge-8' : ''}" style="font-size:0.72rem;">${count} teams</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;">
+            <div style="font-weight:700; color:var(--primary); font-size:1.05rem;">${code}: ${cName}</div>
+            <span class="status-badge ${count > 0 ? 'badge-8' : ''}" style="font-size:0.75rem;">${count} teams</span>
           </div>
-          <div style="margin-top:6px; font-size:0.8rem; color:${email ? '#0f172a' : '#94a3b8'}; display:flex; align-items:center; gap:4px;">
-            <span>✉️</span>
-            <span style="cursor:pointer; text-decoration:${email ? 'none' : 'underline'};" onclick="editClubEmail('${code}')" title="Klik om e-mailadres te bewerken">
-              ${email || 'Geen e-mail (klik om in te stellen)'}
-            </span>
+
+          <!-- Secretaris veld -->
+          <div style="font-size:0.83rem; margin-bottom:6px; background:#f8fafc; border-radius:5px; padding:6px 8px; border-left:3px solid var(--primary);">
+            <div style="font-weight:bold; color:var(--primary); display:flex; justify-content:space-between;">
+              <span>✉️ Secretaris:</span>
+              <span style="font-weight:normal; color:#64748b;">${c.secName || '-'}</span>
+            </div>
+            <div style="margin-top:2px; word-break:break-all;">
+              ${c.secEmail ? `<a href="javascript:void(0)" onclick="openMailComposer('${code}', 'sec')" style="color:#2563eb; text-decoration:none;" title="Stuur mail naar secretaris">${c.secEmail}</a>` : `<span style="color:#94a3b8; font-style:italic; cursor:pointer;" onclick="openEditContactsModal('${code}')">+ Voeg e-mail secretaris toe</span>`}
+            </div>
+          </div>
+
+          <!-- Voorzitter veld -->
+          <div style="font-size:0.83rem; background:#f8fafc; border-radius:5px; padding:6px 8px; border-left:3px solid #d97706;">
+            <div style="font-weight:bold; color:#92400e; display:flex; justify-content:space-between;">
+              <span>👑 Voorzitter:</span>
+              <span style="font-weight:normal; color:#64748b;">${c.chairName || '-'}</span>
+            </div>
+            <div style="margin-top:2px; word-break:break-all;">
+              ${c.chairEmail ? `<a href="javascript:void(0)" onclick="openMailComposer('${code}', 'chair')" style="color:#b45309; text-decoration:none;" title="Stuur mail naar voorzitter">${c.chairEmail}</a>` : `<span style="color:#94a3b8; font-style:italic; cursor:pointer;" onclick="openEditContactsModal('${code}')">+ Voeg e-mail voorzitter toe</span>`}
+            </div>
           </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:8px; margin-top:4px;">
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-primary btn-sm" onclick="openMailComposer('${code}')" title="Stuur competitieprogramma per mail naar ${cName}">
+        <!-- Actieknoppen -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #f1f5f9; padding-top:10px; flex-wrap:wrap; gap:6px;">
+          <div style="display:flex; gap:5px; flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="openMailComposer('${code}', 'both')" title="Mail programma naar secretaris & voorzitter (CC)">
               ✉️ Mail
             </button>
-            <button class="btn btn-outline btn-sm" onclick="copyClubEmailText('${code}')" title="Kopieer concepttekst voor Hosting2GO webmail">
+            <button class="btn btn-outline btn-sm" onclick="copyClubEmailText('${code}')" title="Kopieer e-mailtekst om in Hosting2GO Webmail te plakken">
               📋 Tekst
             </button>
           </div>
           <div style="display:flex; gap:4px;">
-            <button class="btn-arrow" style="padding:4px 6px;" title="Verenigingsnaam en e-mailadres bewerken" onclick="editClub('${code}')">✏️</button>
-            <button class="btn-arrow" style="padding:4px 6px; color:var(--danger);" title="Vereniging verwijderen" onclick="deleteClub('${code}')">🗑️</button>
+            <button class="btn-arrow" style="padding:5px 8px;" title="Bewerk contactpersonen & verenigingsnaam" onclick="openEditContactsModal('${code}')">✏️ Bewerk</button>
+            <button class="btn-arrow" style="padding:5px 8px; color:var(--danger);" title="Vereniging verwijderen" onclick="deleteClub('${code}')">🗑️</button>
           </div>
         </div>
       </div>
@@ -1661,54 +1777,45 @@ function renderClubs() {
   grid.innerHTML = html;
 }
 
-function editClubEmail(code) {
-  const current = getClubEmail(code);
-  const newEmail = prompt(`Voer het e-mailadres in voor secretaris/bestuur van ${clubNames[code]}:`, current);
-  if (newEmail !== null) {
-    setClubEmail(code, newEmail);
-    renderClubs();
-  }
-}
-
-function deleteClub(code) {
+function openEditContactsModal(code) {
   const cName = clubNames[code] || code;
-  const classData = getCurrentClassData();
-  let inUse = 0;
-  classData.forEach(c => {
-    c.teams.forEach(t => {
-      const parsed = parseTeam(t);
-      if (parsed && parsed.code === code) inUse++;
-    });
-  });
+  const c = getClubContact(code);
 
-  let warning = "";
-  if (inUse > 0) {
-    warning = `\n\nLet op: er staan nog ${inUse} team(s) van ${cName} ingedeeld in ${currentCategory}!`;
-  }
+  document.getElementById("edit-club-code").value = code;
+  document.getElementById("edit-club-name").value = cName;
+  document.getElementById("edit-sec-name").value = c.secName || "";
+  document.getElementById("edit-sec-email").value = c.secEmail || "";
+  document.getElementById("edit-chair-name").value = c.chairName || "";
+  document.getElementById("edit-chair-email").value = c.chairEmail || "";
 
-  if (confirm(`Weet je zeker dat je vereniging '${cName}' (${code}) wilt verwijderen?${warning}`)) {
-    delete clubNames[code];
-    delete clubContacts[code];
-    renderClubs();
-    initFilters();
-    renderSchedule();
-    renderBooklet();
-    renderSheets();
-    alert(`Vereniging '${cName}' (${code}) is verwijderd.`);
-  }
+  document.getElementById("edit-contacts-title").innerText = `✏️ ${code}: ${cName} Bewerken`;
+  document.getElementById("editContactsModal").style.display = "flex";
 }
 
-function editClub(code) {
-  const current = clubNames[code];
-  const currentEmail = getClubEmail(code);
-  const newName = prompt(`Pas de naam aan voor vereniging ${code}:`, current);
-  if (newName && newName.trim() !== "") {
-    clubNames[code] = newName.trim();
+function closeEditContactsModal() {
+  document.getElementById("editContactsModal").style.display = "none";
+}
+
+function saveClubContacts() {
+  const code = document.getElementById("edit-club-code").value;
+  const name = document.getElementById("edit-club-name").value.trim();
+  const secName = document.getElementById("edit-sec-name").value.trim();
+  const secEmail = document.getElementById("edit-sec-email").value.trim();
+  const chairName = document.getElementById("edit-chair-name").value.trim();
+  const chairEmail = document.getElementById("edit-chair-email").value.trim();
+
+  if (name) {
+    clubNames[code] = name;
   }
-  const newEmail = prompt(`Pas het e-mailadres aan voor ${clubNames[code]}:`, currentEmail);
-  if (newEmail !== null) {
-    setClubEmail(code, newEmail);
-  }
+
+  clubContacts[code] = {
+    secName: secName || 'Secretaris',
+    secEmail: secEmail,
+    chairName: chairName || 'Voorzitter',
+    chairEmail: chairEmail
+  };
+
+  closeEditContactsModal();
   renderClubs();
   initFilters();
   renderSchedule();
@@ -1716,131 +1823,281 @@ function editClub(code) {
   renderSheets();
 }
 
-function openAddClubModal() {
-  document.getElementById("new-club-code").value = "";
-  document.getElementById("new-club-name").value = "";
-  const emailInput = document.getElementById("new-club-email");
-  if (emailInput) emailInput.value = "";
-  document.getElementById("addClubModal").style.display = "flex";
-}
-
-function closeAddClubModal() {
-  document.getElementById("addClubModal").style.display = "none";
-}
-
-function saveNewClub() {
-  const code = document.getElementById("new-club-code").value.trim().toUpperCase();
-  const name = document.getElementById("new-club-name").value.trim();
-  const emailInput = document.getElementById("new-club-email");
-  const email = emailInput ? emailInput.value.trim() : "";
-
-  if (code.length !== 2 || !name) {
-    alert("Voer een geldige 2-letterige code en verenigingsnaam in.");
-    return;
-  }
-  clubNames[code] = name;
-  if (email) {
-    setClubEmail(code, email);
-  }
-  closeAddClubModal();
-  renderClubs();
-  initFilters();
-  alert(`Vereniging '${name}' (${code}) is succesvol toegevoegd!`);
-}
-
-// -------------------------------------------------------------
-// E-MAIL & SECRETARIATEN MODULE (HOSTING2GO & WC@KLOATSCHEETBOND.NL)
-// -------------------------------------------------------------
-function generateClubEmailBody(clubCode) {
+function openMailComposer(clubCode, recipientType = 'both') {
   const cName = clubNames[clubCode] || clubCode;
-  const matches = generateMatches();
-  const catLabel = currentCategory === 'jeugd' ? 'Jeugd' : 'Senioren';
-  
-  // Find teams of this club
-  const classData = getCurrentClassData();
-  const myTeams = [];
-  classData.forEach(c => {
-    c.teams.forEach(t => {
-      const p = parseTeam(t);
-      if (p && p.code === clubCode) {
-        myTeams.push(`${t} (${c.name})`);
-      }
-    });
-  });
-
-  let body = `Beste secretaris / bestuur van ${cName},\n\n` +
-    `Hierbij ontvangt u het programma voor de ${catLabel}competitie seizoen ${currentSeason} namens de NKB - KTO Wedstrijdcommissie.\n\n` +
-    `Uw ingedeelde teams:\n` +
-    (myTeams.length > 0 ? myTeams.map(t => `- ${t}`).join('\n') : '- Geen teams ingedeeld') + `\n\n` +
-    `Belangrijke aandachtspunten:\n` +
-    `1. Uitslagen op de wedstrijddag direct doorgeven voor 17.00 uur via uitslagen.klootschieten.com\n` +
-    `2. Bij verhindering of afgelasting tijdig contact opnemen met de wedstrijdcommissie en de tegenstander.\n\n` +
-    `Met sportieve groet,\n` +
-    `Wedstrijdcommissie N.K.B. en K.T.O.-T.K.C.\n` +
-    `E-mail: wc@kloatscheetbond.nl`;
-
-  return body;
-}
-
-function openMailComposer(clubCode) {
-  const cName = clubNames[clubCode] || clubCode;
-  const email = getClubEmail(clubCode);
+  const c = getClubContact(clubCode);
   const catLabel = currentCategory === 'jeugd' ? 'Jeugd' : 'Senioren';
   const subject = `Competitieprogramma NKB - KTO ${currentSeason} (${catLabel}) - ${cName}`;
   const body = generateClubEmailBody(clubCode);
 
-  if (!email) {
-    const enteredEmail = prompt(`Er is nog geen e-mailadres ingesteld voor ${cName}. Vul het e-mailadres in:`, "secretaris@...");
-    if (enteredEmail && enteredEmail.trim()) {
-      setClubEmail(clubCode, enteredEmail);
-      renderClubs();
+  let toEmail = "";
+  let ccEmail = "";
+
+  if (recipientType === 'sec') {
+    toEmail = c.secEmail;
+  } else if (recipientType === 'chair') {
+    toEmail = c.chairEmail;
+  } else {
+    // Both
+    if (c.secEmail && c.chairEmail) {
+      toEmail = c.secEmail;
+      ccEmail = c.chairEmail;
     } else {
-      return;
+      toEmail = c.secEmail || c.chairEmail;
     }
   }
 
-  const finalEmail = getClubEmail(clubCode);
-  const mailtoUrl = `mailto:${encodeURIComponent(finalEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (!toEmail) {
+    openEditContactsModal(clubCode);
+    alert(`Vul eerst het e-mailadres in voor secretaris en/of voorzitter van ${cName}.`);
+    return;
+  }
+
+  let mailtoUrl = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (ccEmail) {
+    mailtoUrl += `&cc=${encodeURIComponent(ccEmail)}`;
+  }
+
   window.location.href = mailtoUrl;
 }
 
-function copyClubEmailText(clubCode) {
-  const body = generateClubEmailBody(clubCode);
-  navigator.clipboard.writeText(body).then(() => {
-    alert(`De complete concept e-mail voor ${clubNames[clubCode]} is gekopieerd naar je klembord! Je kunt deze direct plakken in Hosting2GO Webmail.`);
-  }).catch(() => {
-    prompt("Kopieer de e-mailtekst hieronder (Ctrl+C):", body);
-  });
-}
-
-function copyAllSecretariesBCC() {
+function copyAllSecretariesBCC(type = 'all') {
   const emails = [];
   Object.keys(clubNames).sort().forEach(code => {
-    const em = getClubEmail(code);
-    if (em && em.includes("@")) {
-      emails.push(em);
+    const c = getClubContact(code);
+    if (type === 'sec' && c.secEmail && c.secEmail.includes('@')) {
+      emails.push(c.secEmail);
+    } else if (type === 'chair' && c.chairEmail && c.chairEmail.includes('@')) {
+      emails.push(c.chairEmail);
+    } else if (type === 'all') {
+      if (c.secEmail && c.secEmail.includes('@')) emails.push(c.secEmail);
+      if (c.chairEmail && c.chairEmail.includes('@')) emails.push(c.chairEmail);
     }
   });
 
-  if (emails.length === 0) {
+  const uniqueEmails = [...new Set(emails)];
+  if (uniqueEmails.length === 0) {
     alert("Er zijn nog geen e-mailadressen ingevuld bij de verenigingen.");
     return;
   }
 
-  const bccString = emails.join("; ");
+  const bccString = uniqueEmails.join("; ");
   navigator.clipboard.writeText(bccString).then(() => {
-    alert(`Alle ${emails.length} e-mailadressen zijn gekopieerd naar je klembord!\n\nPlak ze nu direct in het BCC-veld in Hosting2GO Webmail (mail.hosting2go.nl of webmail.kloatscheetbond.nl).`);
+    alert(`Alle ${uniqueEmails.length} e-mailadressen zijn gekopieerd naar je klembord!\n\nPlak ze nu direct in het BCC-veld in Hosting2GO Webmail (32.sslprotected.nl/webmail) met afzender wc@kloatscheetbond.nl.`);
   }).catch(() => {
-    prompt("Kopieer alle e-mailadressen voor BCC (Ctrl+C):", bccString);
+    prompt("Kopieer de e-mailadressen voor BCC (Ctrl+C):", bccString);
   });
 }
 
-function openHosting2GoWebmail() {
-  window.open("https://mail.hosting2go.nl", "_blank");
+
+
+// -------------------------------------------------------------
+// KRUISTABEL MODULE (VERENIGINGEN X KLASSEN CONFORM OFFICIEEL BONDSOVERZICHT)
+// -------------------------------------------------------------
+function generateCrossTableData() {
+  const classData = getCurrentClassData();
+  const matches = generateMatches();
+  const maxRounds = currentCategory === 'jeugd' ? 10 : 14;
+
+  // Gather teams per club per class
+  // clubRow[code] = { name: "...", classes: { 1: ["1", "3"], 2: ["2"], ... }, totalTeams: N, homeCount: X, awayCount: Y }
+  const clubRows = {};
+
+  Object.keys(clubNames).sort().forEach(code => {
+    clubRows[code] = {
+      code: code,
+      name: clubNames[code],
+      classes: {},
+      totalTeams: 0,
+      homeEstimate: 0,
+      awayEstimate: 0
+    };
+    classData.forEach(c => {
+      clubRows[code].classes[c.num] = [];
+    });
+  });
+
+  classData.forEach(c => {
+    c.teams.forEach(t => {
+      const p = parseTeam(t);
+      if (p && clubRows[p.code]) {
+        clubRows[p.code].classes[c.num].push(p.num);
+        clubRows[p.code].totalTeams++;
+      }
+    });
+  });
+
+  // Calculate home/away balance based on round 1 or average
+  Object.keys(clubRows).forEach(code => {
+    const rData = getClubHomeAwayRounds(code);
+    // Find average or round 1
+    const d1 = rData[1] || { home: 0, away: 0 };
+    clubRows[code].homeEstimate = d1.home;
+    clubRows[code].awayEstimate = d1.away;
+  });
+
+  return { classData, clubRows };
+}
+
+function renderCrossTable() {
+  const container = document.getElementById("crossTableContainer");
+  if (!container) return;
+  const { classData, clubRows } = generateCrossTableData();
+  const catLabel = currentCategory === 'jeugd' ? 'Jeugd' : 'Senioren';
+
+  let html = `
+    <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <h3 style="color: var(--primary); font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+          📊 Indeling in de klassen ${currentSeason} (${catLabel})
+        </h3>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Kruistabel overzicht van alle verenigingen met ingedeelde teams per klasse en Thuis/Uit baanbalans (exact conform officieel NKB-KTO document).
+        </p>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-success btn-sm" onclick="exportCrossTableExcel()">📥 Excel (.xlsx)</button>
+        <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Afdrukken / PDF</button>
+      </div>
+    </div>
+
+    <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 6px;">
+      <table class="data-table" style="font-size: 0.8rem; text-align: center; border-collapse: collapse; width: 100%;">
+        <thead>
+          <tr style="background: #1e3a8a; color: white;">
+            <th style="padding: 6px; text-align: left; width: 140px;">Vereniging</th>
+            <th style="padding: 6px; width: 36px;">Code</th>
+  `;
+
+  classData.forEach(c => {
+    html += `<th style="padding: 6px; min-width: 44px; text-align: center;">${c.name.replace('klasse', '').trim()}</th>`;
+  });
+
+  html += `
+            <th style="padding: 6px; background: #0f172a; width: 50px;">teams</th>
+            <th style="padding: 6px; background: #065f46; width: 40px;">th</th>
+            <th style="padding: 6px; background: #991b1b; width: 40px;">uit</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  let grandTotalTeams = 0;
+  const activeClubCodes = Object.keys(clubRows).filter(code => clubRows[code].totalTeams > 0);
+
+  activeClubCodes.forEach((code, idx) => {
+    const row = clubRows[code];
+    grandTotalTeams += row.totalTeams;
+    const bg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+
+    html += `
+      <tr style="background: ${bg}; border-bottom: 1px solid #e2e8f0;">
+        <td style="text-align: left; font-weight: bold; padding: 6px 8px; color: #1e3a8a;">${row.name}</td>
+        <td style="font-weight: bold; color: #475569;">${row.code}</td>
+    `;
+
+    classData.forEach(c => {
+      const teamsInClass = row.classes[c.num] || [];
+      const cellText = teamsInClass.length > 0 ? teamsInClass.join(", ") : "-";
+      const cellStyle = teamsInClass.length > 0 ? "font-weight: bold; color: #0f172a; background: #eff6ff;" : "color: #cbd5e1;";
+      html += `<td style="padding: 6px 4px; ${cellStyle}">${cellText}</td>`;
+    });
+
+    html += `
+        <td style="font-weight: bold; background: #f1f5f9;">${row.totalTeams}</td>
+        <td style="font-weight: bold; color: #059669; background: #ecfdf5;">${row.homeEstimate}</td>
+        <td style="font-weight: bold; color: #dc2626; background: #fef2f2;">${row.awayEstimate}</td>
+      </tr>
+    `;
+  });
+
+  // Footer row 1: Wissel T/U status
+  html += `
+    <tr style="background: #e2e8f0; font-weight: bold; border-top: 2px solid #334155;">
+      <td colspan="2" style="text-align: left; padding: 6px 8px;">Wissel T/U (Speelschema)</td>
+  `;
+  classData.forEach(c => {
+    html += `<td style="font-size: 0.72rem; color: ${c.swap ? '#b45309' : '#059669'};">${c.swap ? 'uit' : 'thuis'}</td>`;
+  });
+  html += `
+      <td></td><td></td><td></td>
+    </tr>
+  `;
+
+  // Footer row 2: Aantal teams per klasse
+  html += `
+    <tr style="background: #cbd5e1; font-weight: bold;">
+      <td colspan="2" style="text-align: left; padding: 6px 8px;">Aantal teams per klasse</td>
+  `;
+  classData.forEach(c => {
+    const validCount = c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-").length;
+    html += `<td>${validCount}</td>`;
+  });
+  html += `
+      <td style="background: #0f172a; color: white;">${grandTotalTeams}</td>
+      <td colspan="2"></td>
+    </tr>
+  `;
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+
+function exportCrossTableExcel() {
+  if (typeof XLSX === "undefined") {
+    alert("Excel bibliotheek niet geladen.");
+    return;
+  }
+  const { classData, clubRows } = generateCrossTableData();
+  const catLabel = currentCategory === 'jeugd' ? 'Jeugd' : 'Senioren';
+  const cleanSeason = getCleanSeasonName();
+
+  const headers = ["Vereniging", "Code"].concat(classData.map(c => c.name)).concat(["teams", "thuis", "uit"]);
+  const rows = [
+    [`Indeling in de klassen ${currentSeason} (${catLabel})`],
+    headers
+  ];
+
+  let totalAll = 0;
+  Object.keys(clubRows).sort().forEach(code => {
+    const r = clubRows[code];
+    if (r.totalTeams === 0) return;
+    totalAll += r.totalTeams;
+    const rVals = [r.name, r.code];
+    classData.forEach(c => {
+      const t = r.classes[c.num] || [];
+      rVals.push(t.join(", "));
+    });
+    rVals.push(r.totalTeams, r.homeEstimate, r.awayEstimate);
+    rows.push(rVals);
+  });
+
+  // Footer swap row
+  const swapRow = ["Wissel T/U", ""].concat(classData.map(c => c.swap ? "uit" : "thuis")).concat(["", "", ""]);
+  rows.push(swapRow);
+
+  // Footer total teams per class
+  const classTotals = ["Aantal teams per klasse", ""].concat(classData.map(c => c.teams.filter(t => t && t.trim() !== "" && t.trim() !== "-").length)).concat([totalAll, "", ""]);
+  rows.push(classTotals);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Klassenoverzicht");
+  XLSX.writeFile(wb, `indeling_in_de_klassen_${currentCategory}_${cleanSeason}.xlsx`);
 }
 
 
 // EXPORT FUNCTIES (EXCEL, WORD, CSV)
+function openHosting2GoWebmail() {
+  window.open("https://32.sslprotected.nl/webmail/?_task=mail&_mbox=INBOX", "_blank");
+}
+
 function getCleanSeasonName() {
   return currentSeason.replace(/\s+/g, '');
 }
@@ -2112,7 +2369,7 @@ function downloadCSV(content, filename) {
 }
 
 function showTab(tabId) {
-  const allTabs = ["tab-matrix", "tab-booklet", "tab-schedule", "tab-sheets", "tab-exports", "tab-calendar", "tab-info"];
+  const allTabs = ["tab-matrix", "tab-crosstable", "tab-booklet", "tab-schedule", "tab-sheets", "tab-exports", "tab-calendar", "tab-info"];
   allTabs.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = (id === tabId) ? "block" : "none";
@@ -2123,6 +2380,7 @@ function showTab(tabId) {
     window.event.target.classList.add("active");
   }
 
+  if (tabId === "tab-crosstable") renderCrossTable();
   if (tabId === "tab-booklet") renderBooklet();
   if (tabId === "tab-schedule") renderSchedule();
   if (tabId === "tab-sheets") renderSheets();
@@ -2694,6 +2952,52 @@ const defaultCalendarData = [
   { date: "zo 11 juli", jun: false, event: "Cupfinales Veld begin vakantie", r8: null, r9: null }
 ];
 
+
+function shiftDutchDate(str, yearsDiff = 1) {
+  if (!str) return str;
+  const parts = str.trim().split(/\s+/);
+  if (parts.length < 3) return str;
+  const dayPrefix = parts[0];
+  const dayNum = parseInt(parts[1]);
+  const monthName = parts[2].toLowerCase();
+
+  const monthMap = {
+    'januari': 0, 'februari': 1, 'maart': 2, 'april': 3,
+    'mei': 4, 'juni': 5, 'juli': 6, 'augustus': 7,
+    'september': 8, 'oktober': 9, 'november': 10, 'december': 11
+  };
+  const monthIdx = monthMap[monthName];
+  if (monthIdx === undefined || isNaN(dayNum)) return str;
+
+  // Use base year 2026 for aug..dec and 2027 for jan..jul
+  const baseYear = monthIdx >= 7 ? 2026 : 2027;
+  const dateObj = new Date(baseYear, monthIdx, dayNum);
+
+  // Shift by 364 days per year (exactly 52 weeks keeps every Sunday on a Sunday)
+  dateObj.setDate(dateObj.getDate() + (364 * yearsDiff));
+
+  const dayNames = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  const monthNames = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+
+  const newDayPrefix = dayNames[dateObj.getDay()];
+  const newDayNum = dateObj.getDate();
+  const newMonthName = monthNames[dateObj.getMonth()];
+
+  return `${newDayPrefix} ${newDayNum} ${newMonthName}`;
+}
+
+function shiftActiveCalendar(years = 1) {
+  const cal = getCurrentCalendar();
+  recordState(`Kalenderdata verschoven (${years > 0 ? '+' : ''}${years} jaar)`);
+  cal.forEach(row => {
+    row.date = shiftDutchDate(row.date, years);
+  });
+  renderCalendarTable();
+  renderBooklet();
+  renderSheets();
+  alert(`Alle wedstrijdzondagen zijn succesvol met ${years > 0 ? '+' : ''}${years} jaar (52 weken) doorgeschoven naar de nieuwe datums!`);
+}
+
 let seasonsCalendar = {
   "2026 - 2027": JSON.parse(JSON.stringify(defaultCalendarData))
 };
@@ -2738,6 +3042,8 @@ function getMatchDate(roundNum, is10Class) {
 function renderCalendarTable() {
   const cal = getCurrentCalendar();
   const tbody = document.getElementById("calendarBody");
+  const seasonLabel = document.getElementById("cal-season-label");
+  if (seasonLabel) seasonLabel.innerText = currentSeason;
   if (!tbody) return;
 
   let html = "";
